@@ -296,7 +296,27 @@
             <div class="hint">King James Version &middot; World English Bible &middot; American Standard Version — all public domain, fetched free with no key needed.</div>
         </div>
 
-        <div class="field" style="margin-top:14px;">
+                <div class="field" style="margin-top:14px;" id="extraTranslationWrap">
+            <label>Translation (extra)</label>
+            <select id="extraTranslationSelect">
+                <option value="">— select a translation —</option>
+            </select>
+            <div class="hint">Selecting one here overrides the KJV/WEB/ASV buttons above. Whole-chapter lookups aren't supported for these — enter a specific verse or range.</div>
+        </div>
+
+        <!-- Provider/key setup runs in the background using DEFAULT_PROVIDER_KEYS in the script — intentionally hidden from the UI. -->
+        <div style="display:none;">
+            <select id="providerSelect">
+                <option value="youversion">YouVersion Platform</option>
+                <option value="apibible">API.Bible</option>
+            </select>
+            <input type="text" id="providerKey">
+            <button id="loadTranslationsBtn">Load Translations</button>
+            <div id="providerHint"></div>
+            <div class="error-msg" id="apiBibleError"></div>
+        </div>
+        
+        <!-- <div class="field" style="margin-top:14px;">
             <label>More translations (NIV, NLT, Amplified, etc.)</label>
             <div class="hint">
                 Modern translations are copyrighted, so they can't be pulled from a free, open source the way KJV/WEB/ASV can.
@@ -327,7 +347,7 @@
                 <div class="hint">Selecting one here overrides the KJV/WEB/ASV buttons above. Whole-chapter lookups aren't supported for these — enter a specific verse or range.</div>
             </div>
             <div class="error-msg" id="apiBibleError"></div>
-        </div>
+        </div> -->
 
         <div class="preview" id="previewBox">
             <div class="placeholder">Search a reference above to preview it here before sending it to the display.</div>
