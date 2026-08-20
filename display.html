@@ -21,15 +21,29 @@
         overflow:hidden;
     }
     .frame{
-        height:100%;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        padding: 6vh 8vw;
-        text-align:center;
-        position:relative;
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    padding: 6vh 8vw;
+    text-align:center;
+    position:relative;
     }
+    #content{
+    max-height: 80vh;
+    overflow-y: auto;
+    width: 100%;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) transparent;
+    }
+    #content::-webkit-scrollbar{ width:6px; }
+    #content::-webkit-scrollbar-thumb{ background: var(--gold); border-radius:3px; }
+    
     .community-name{
         position:absolute;
         top:4vh;
@@ -41,11 +55,11 @@
         color: var(--gold);
     }
     .verse-text{
-        font-size:3.4vw;
-        line-height:1.55;
-        max-width: 1100px;
-        color:#ffffff;
-        transition: opacity 0.4s ease;
+    line-height:1.5;
+    max-width: 1100px;
+    color:#ffffff;
+    transition: opacity 0.4s ease;
+    /* font-size is now set dynamically in JS based on verse length */
     }
     .verse-ref{
         margin-top:4vh;
@@ -111,20 +125,34 @@
     const savedName = localStorage.getItem('scripture_community_name');
     if (savedName) communityNameEl.textContent = savedName;
 
-    function escapeHtml(str) {
+        function escapeHtml(str) {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
+    }
+
+    // Picks a font size (in vw) based on how long the verse text is,
+    // so long verses (e.g. Esther 8:9) shrink to fit instead of overflowing.
+    function getFontSize(text) {
+        const len = text.length;
+        if (len <= 90)  return 3.4;   // short verse, e.g. John 11:35
+        if (len <= 160) return 2.8;
+        if (len <= 260) return 2.3;
+        if (len <= 380) return 1.9;
+        if (len <= 550) return 1.55;  // covers long verses like Esther 8:9
+        if (len <= 800) return 1.3;
+        return 1.1;                   // extremely long passages / multi-verse ranges
     }
 
     channel.onmessage = (event) => {
         const msg = event.data;
         if (msg.type === 'show_verse') {
             const v = msg.verse;
+            const fontSize = getFontSize(v.text);
             content.style.opacity = 0;
             setTimeout(() => {
                 content.innerHTML = `
-                    <div class="verse-text">${escapeHtml(v.text)}</div>
+                    <div class="verse-text" style="font-size:${fontSize}vw;">${escapeHtml(v.text)}</div>
                     <div class="rule"></div>
                     <div class="verse-ref">${escapeHtml(v.reference)} &mdash; ${escapeHtml(v.translationName)}</div>
                 `;
