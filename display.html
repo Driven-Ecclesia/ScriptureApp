@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scripture Display</title>
+<style>
+    :root{
+        --navy:#0b1730;
+        --navy-2:#16234a;
+        --gold:#c9a24a;
+        --gold-soft:#e3d6ae;
+        --cream:#f3ead2;
+    }
+    *{box-sizing:border-box; margin:0; padding:0;}
+    html, body{
+        height:100%;
+        font-family:'Georgia','Times New Roman',serif;
+        background: linear-gradient(180deg, #0b1730 0%, #16234a 55%, #0b1730 100%);
+        color: var(--cream);
+        overflow:hidden;
+    }
+    .frame{
+        height:100%;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        padding: 6vh 8vw;
+        text-align:center;
+        position:relative;
+    }
+    .community-name{
+        position:absolute;
+        top:4vh;
+        left:0; right:0;
+        text-align:center;
+        font-size:1.1vw;
+        letter-spacing:4px;
+        text-transform:uppercase;
+        color: var(--gold);
+    }
+    .verse-text{
+        font-size:3.4vw;
+        line-height:1.55;
+        max-width: 1100px;
+        color:#ffffff;
+        transition: opacity 0.4s ease;
+    }
+    .verse-ref{
+        margin-top:4vh;
+        font-size:1.5vw;
+        color: var(--gold-soft);
+        letter-spacing:1px;
+        font-style:italic;
+    }
+    .rule{
+        width:120px;
+        height:2px;
+        background: var(--gold);
+        margin: 3.5vh auto 0 auto;
+    }
+    .placeholder{
+        color:#8a92b3;
+        font-size:1.6vw;
+        font-style:italic;
+        letter-spacing:0.5px;
+    }
+    .placeholder .cross{
+        font-size:4vw;
+        color: var(--gold);
+        margin-bottom:20px;
+        display:block;
+    }
+    .connection-note{
+        position:absolute;
+        bottom:3vh;
+        left:0; right:0;
+        text-align:center;
+        font-size:0.8vw;
+        color:#5a6690;
+        letter-spacing:1px;
+    }
+
+    @media (max-width: 700px) {
+        .verse-text{ font-size:6vw; }
+        .verse-ref{ font-size:3.2vw; }
+        .community-name{ font-size:3vw; }
+        .placeholder{ font-size:4vw; }
+    }
+</style>
+</head>
+<body>
+
+<div class="frame">
+    <div class="community-name" id="communityName">CEC</div>
+    <div id="content">
+        <div class="placeholder">
+            <span class="cross">&#10013;</span>
+            Waiting for scripture…
+        </div>
+    </div>
+    <div class="connection-note">Controlled from the Scripture Display control panel</div>
+</div>
+
+<script>
+    const channel = new BroadcastChannel('scripture_display_channel');
+    const content = document.getElementById('content');
+    const communityNameEl = document.getElementById('communityName');
+
+    const savedName = localStorage.getItem('scripture_community_name');
+    if (savedName) communityNameEl.textContent = savedName;
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    channel.onmessage = (event) => {
+        const msg = event.data;
+        if (msg.type === 'show_verse') {
+            const v = msg.verse;
+            content.style.opacity = 0;
+            setTimeout(() => {
+                content.innerHTML = `
+                    <div class="verse-text">${escapeHtml(v.text)}</div>
+                    <div class="rule"></div>
+                    <div class="verse-ref">${escapeHtml(v.reference)} &mdash; ${escapeHtml(v.translationName)}</div>
+                `;
+                content.style.opacity = 1;
+            }, 200);
+        } else if (msg.type === 'clear') {
+            content.innerHTML = `
+                <div class="placeholder">
+                    <span class="cross">&#10013;</span>
+                    Waiting for scripture…
+                </div>
+            `;
+        } else if (msg.type === 'community_name') {
+            communityNameEl.textContent = msg.name;
+        }
+    };
+</script>
+
+</body>
+</html>
