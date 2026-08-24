@@ -223,6 +223,26 @@
         background: var(--gold-soft);
     }
 </style>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBowRtZf_IoFiiIPzMNNlkTxKQ2krCRJBM",
+    authDomain: "driven-scripture.firebaseapp.com",
+    databaseURL: "https://driven-scripture-default-rtdb.firebaseio.com",
+    projectId: "driven-scripture",
+    storageBucket: "driven-scripture.firebasestorage.app",
+    messagingSenderId: "129202807693",
+    appId: "1:129202807693:web:4eb080f18962aa6a9cd3c4"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  window.firebaseDb = db;
+  window.firebaseRef = ref;
+  window.firebaseSet = set;
+</script>
 </head>
 <body>
 
@@ -239,17 +259,27 @@
 
 <main>
 
-    <div class="card">
+  <div class="card">
         <h2>Community Settings</h2>
         <div class="settings-row">
             <div class="field">
                 <label for="communityNameInput">Community / Church name (shown on display)</label>
-                <input type="text" id="communityNameInput" value="Driven Ecclesia" placeholder="e.g. Driven">
+                <input type="text" id="communityNameInput" value="CEC" placeholder="e.g. CEC">
             </div>
             <div class="field" style="flex:0 0 auto; align-self:flex-end;">
                 <button class="secondary small" id="saveNameBtn">Save</button>
             </div>
         </div>
+        <div class="settings-row" style="margin-top:14px;">
+            <div class="field">
+                <label for="roomCodeInput">Room code (control panel and display must match)</label>
+                <input type="text" id="roomCodeInput" value="main" placeholder="e.g. main">
+            </div>
+            <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+                <button class="secondary small" id="saveRoomBtn">Save</button>
+            </div>
+        </div>
+        <div class="hint" id="displayLinkHint" style="margin-top:8px;"></div>
     </div>
 
     <div class="card">
@@ -432,7 +462,7 @@
         {name:"Jude", osis:"JUD", chapters:1}, {name:"Revelation", osis:"REV", chapters:22}
     ];
 
-    const state = {
+        const state = {
         translation: 'kjv',
         translationSource: 'bible-api', // 'bible-api' | 'api-bible'
         apiBibleKey: '',
@@ -442,11 +472,18 @@
         verseList: [],
         verseIndex: 0,
         history: JSON.parse(localStorage.getItem('scripture_history') || '[]'),
-        displayWindow: null
+        displayWindow: null,
+        roomCode: localStorage.getItem('scripture_room_code') || 'main'
     };
 
-    const channel = new BroadcastChannel('scripture_display_channel');
     const translationNames = { kjv: 'King James Version', web: 'World English Bible', asv: 'American Standard Version' };
+
+    function sendToRoom(payload) {
+        window.firebaseSet(
+            window.firebaseRef(window.firebaseDb, 'rooms/' + state.roomCode),
+            { ...payload, timestamp: Date.now() }
+        );
+    }
 
     function escapeHtml(str) {
         const div = document.createElement('div');
@@ -462,11 +499,31 @@
         communityNameInput.value = savedName;
         communityNameHeader.textContent = savedName + ' Scripture Display';
     }
-    document.getElementById('saveNameBtn').addEventListener('click', () => {
+        document.getElementById('saveNameBtn').addEventListener('click', () => {
         const name = communityNameInput.value.trim() || 'CEC';
         localStorage.setItem('scripture_community_name', name);
         communityNameHeader.textContent = name + ' Scripture Display';
-        channel.postMessage({ type: 'community_name', name });
+        sendToRoom({ type: 'community_name', name });
+    });
+
+    // ---- Room code ----
+    const roomCodeInput = document.getElementById('roomCodeInput');
+    const displayLinkHint = document.getElementById('displayLinkHint');
+    roomCodeInput.value = state.roomCode;
+
+    function updateDisplayLinkHint() {
+        const url = new URL('display.html', window.location.href);
+        url.searchParams.set('room', state.roomCode);
+        displayLinkHint.innerHTML = 'Display link for this room: <strong>' + url.toString() + '</strong>';
+    }
+    updateDisplayLinkHint();
+
+    document.getElementById('saveRoomBtn').addEventListener('click', () => {
+        const code = roomCodeInput.value.trim().toLowerCase().replace(/\s+/g, '-') || 'main';
+        state.roomCode = code;
+        roomCodeInput.value = code;
+        localStorage.setItem('scripture_room_code', code);
+        updateDisplayLinkHint();
     });
 
     // ---- Book / Chapter / Verse pickers ----
@@ -765,18 +822,20 @@
         }
     }
 
-    document.getElementById('sendBtn').addEventListener('click', () => {
+        document.getElementById('sendBtn').addEventListener('click', () => {
         if (!state.currentVerse) return;
-        channel.postMessage({ type: 'show_verse', verse: state.currentVerse });
+        sendToRoom({ type: 'show_verse', verse: state.currentVerse });
         addToHistory(state.currentVerse);
     });
 
     document.getElementById('clearDisplayBtn').addEventListener('click', () => {
-        channel.postMessage({ type: 'clear' });
+        sendToRoom({ type: 'clear' });
     });
 
     document.getElementById('openDisplayBtn').addEventListener('click', () => {
-        state.displayWindow = window.open('display.html', 'scripture_display', 'width=1280,height=720');
+        const url = new URL('display.html', window.location.href);
+        url.searchParams.set('room', state.roomCode);
+        state.displayWindow = window.open(url.toString(), 'scripture_display', 'width=1280,height=720');
         setTimeout(updateStatusPill, 800);
     });
 
