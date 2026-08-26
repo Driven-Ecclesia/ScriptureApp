@@ -206,6 +206,34 @@
         margin-top:8px;
     }
     .hint{ font-size:11.5px; color:#9c9578; margin-top:6px; line-height:1.5; }
+
+    .bg-gallery{ display:flex; gap:10px; flex-wrap:wrap; }
+    .bg-thumb{
+        width:110px; height:66px;
+        border-radius:4px;
+        border:2px solid var(--gold-soft);
+        background-size:cover;
+        background-position:center;
+        cursor:pointer;
+        position:relative;
+    }
+    .bg-thumb:hover{ border-color: var(--gold); }
+    .bg-thumb.selected{ border-color: var(--navy-2); box-shadow: 0 0 0 2px var(--gold); }
+    .bg-thumb .label{
+        position:absolute; bottom:0; left:0; right:0;
+        background:rgba(11,23,48,0.75); color:#fff;
+        font-size:9.5px; text-align:center; padding:2px 0;
+        border-radius:0 0 2px 2px;
+    }
+    .bg-color-row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .bg-swatch{
+        width:44px; height:44px;
+        border-radius:50%;
+        border:2px solid var(--gold-soft);
+        cursor:pointer;
+    }
+    .bg-swatch:hover{ border-color: var(--gold); transform:scale(1.06); }
+    .bg-swatch.selected{ box-shadow: 0 0 0 3px var(--gold); }
     .divider-label{
         font-size:11px;
         color:#b3a97e;
@@ -280,6 +308,33 @@
             </div>
         </div>
         <div class="hint" id="displayLinkHint" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="card">
+        <h2>Display Background</h2>
+
+        <div class="field">
+            <label>Preset Image Backgrounds</label>
+            <div class="bg-gallery" id="bgGallery"></div>
+        </div>
+
+        <div class="field" style="margin-top:16px;">
+            <label>Solid Color Backgrounds</label>
+            <div class="bg-color-row" id="bgColorRow"></div>
+            <div class="row" style="margin-top:10px; align-items:center;">
+                <div class="field" style="flex:0 0 auto;">
+                    <label for="customColorInput">Custom color</label>
+                    <input type="color" id="customColorInput" value="#0b1730">
+                </div>
+                <div class="field" style="flex:0 0 auto; align-self:flex-end;">
+                    <button class="secondary small" id="applyCustomColorBtn">Apply Custom Color</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="secondary" id="resetBgBtn">Reset to Default Background</button>
+        </div>
     </div>
 
     <div class="card">
@@ -490,6 +545,77 @@
         div.textContent = str;
         return div.innerHTML;
     }
+
+    // ---- Backgrounds ----
+    const BACKGROUND_PRESETS = [
+        { label: 'Default',      file: null },
+        { label: 'Christmas',    file: 'backgrounds/christmas.jpg' },
+        { label: 'Easter',       file: 'backgrounds/easter.jpg' },
+        { label: 'Anniversary',  file: 'backgrounds/anniversary.jpg' }
+        // Add more lines here any time you upload a new image, e.g.:
+        // { label: 'Youth Week', file: 'backgrounds/youth-week.jpg' },
+    ];
+
+    const COLOR_PRESETS = [
+        { label: 'Navy (Default)', value: '#0b1730' },
+        { label: 'Deep Red',       value: '#5c1414' },
+        { label: 'Royal Purple',   value: '#2e1a47' },
+        { label: 'Emerald',        value: '#0f3d2e' },
+        { label: 'Gold',           value: '#7a5b12' }
+    ];
+
+    function renderBgGallery() {
+        const gallery = document.getElementById('bgGallery');
+        gallery.innerHTML = BACKGROUND_PRESETS.map((bg, i) => `
+            <div class="bg-thumb" data-index="${i}"
+                 style="background-image:${bg.file ? `url('${bg.file}')` : 'linear-gradient(180deg,#0b1730,#16234a)'};">
+                <div class="label">${escapeHtml(bg.label)}</div>
+            </div>
+        `).join('');
+        gallery.querySelectorAll('.bg-thumb').forEach(el => {
+            el.addEventListener('click', () => {
+                const bg = BACKGROUND_PRESETS[parseInt(el.dataset.index)];
+                if (!bg.file) {
+                    sendToRoom({ type: 'background', mode: 'default' });
+                } else {
+                    sendToRoom({ type: 'background', mode: 'image', value: bg.file });
+                }
+                gallery.querySelectorAll('.bg-thumb').forEach(t => t.classList.remove('selected'));
+                el.classList.add('selected');
+                document.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('selected'));
+            });
+        });
+    }
+
+    function renderColorRow() {
+        const row = document.getElementById('bgColorRow');
+        row.innerHTML = COLOR_PRESETS.map((c, i) => `
+            <div class="bg-swatch" data-index="${i}" style="background:${c.value};" title="${escapeHtml(c.label)}"></div>
+        `).join('');
+        row.querySelectorAll('.bg-swatch').forEach(el => {
+            el.addEventListener('click', () => {
+                const c = COLOR_PRESETS[parseInt(el.dataset.index)];
+                sendToRoom({ type: 'background', mode: 'color', value: c.value });
+                row.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('selected'));
+                el.classList.add('selected');
+                document.querySelectorAll('.bg-thumb').forEach(t => t.classList.remove('selected'));
+            });
+        });
+    }
+
+    renderBgGallery();
+    renderColorRow();
+
+    document.getElementById('applyCustomColorBtn').addEventListener('click', () => {
+        const value = document.getElementById('customColorInput').value;
+        sendToRoom({ type: 'background', mode: 'color', value });
+        document.querySelectorAll('.bg-swatch, .bg-thumb').forEach(el => el.classList.remove('selected'));
+    });
+
+    document.getElementById('resetBgBtn').addEventListener('click', () => {
+        sendToRoom({ type: 'background', mode: 'default' });
+        document.querySelectorAll('.bg-swatch, .bg-thumb').forEach(el => el.classList.remove('selected'));
+    });
 
     // ---- Community name ----
     const communityNameInput = document.getElementById('communityNameInput');
