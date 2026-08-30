@@ -416,12 +416,19 @@
             <div class="hint">King James Version &middot; World English Bible &middot; American Standard Version — all public domain, fetched free with no key needed.</div>
         </div>
 
-                <div class="field" style="margin-top:14px;" id="extraTranslationWrap">
+        <div class="field" style="margin-top:14px;" id="extraTranslationWrap">
             <label>Translation (extra)</label>
             <select id="extraTranslationSelect">
                 <option value="">— select a translation —</option>
             </select>
             <div class="hint">Selecting one here overrides the KJV/WEB/ASV buttons above. Whole-chapter lookups aren't supported for these — enter a specific verse or range.</div>
+        </div>
+        <div class="field" style="margin-top:14px;">
+            <label>More Translations — NKJV, NIV, NLT, Amplified, CSB (no key needed)</label>
+            <select id="bollsTranslationSelect">
+                <option value="">— select a translation —</option>
+            </select>
+            <div class="hint">Free, no signup — overrides the other translation choices above when selected.</div>
         </div>
 
         <!-- Provider/key setup runs in the background using DEFAULT_PROVIDER_KEYS in the script — intentionally hidden from the UI. -->
@@ -567,7 +574,13 @@
     };
 
     const translationNames = { kjv: 'King James Version', web: 'World English Bible', asv: 'American Standard Version' };
-
+    const BOLLS_TRANSLATIONS = {
+    NKJV: 'New King James Version',
+    NIV: 'New International Version',
+    NLT: 'New Living Translation',
+    AMP: 'Amplified Bible',
+    CSB: 'Christian Standard Bible'
+    };
     function sendToRoom(payload) {
         window.firebaseSet(
             window.firebaseRef(window.firebaseDb, 'rooms/' + state.roomCode),
@@ -885,7 +898,10 @@
         try {
             const sel = document.getElementById('extraTranslationSelect');
             if (provider === 'youversion') {
-                let res = await fetch('https://api.youversion.com/v1/bibles?language_ranges[]=eng', {
+                // Without all_available=true this only returns the small default set enabled
+                // for your app key (a handful of public-domain texts) — NOT the full catalog,
+                // which is where NIV/NKJV/NLT/Amplified/CSB actually live.
+                let res = await fetch('https://api.youversion.com/v1/bibles?language_ranges[]=eng&all_available=true', {
                     headers: { 'X-YVP-App-Key': key, 'Accept': 'application/json' }
                 });
                 if (!res.ok) throw new Error(`Could not verify that app key (status ${res.status}). Double check it and try again.`);
@@ -894,7 +910,7 @@
                 // 204 / empty list: retry once without the language filter, in case that param format is the mismatch.
                 let list = data ? (data.data || data.bibles || data.results || []) : [];
                 if (!list.length) {
-                    res = await fetch('https://api.youversion.com/v1/bibles', {
+                    res = await fetch('https://api.youversion.com/v1/bibles?all_available=true', {
                         headers: { 'X-YVP-App-Key': key, 'Accept': 'application/json' }
                     });
                     if (res.ok) {
@@ -926,8 +942,21 @@
         } catch (err) {
             errEl.textContent = err.message;
         }
-    }
+    } 
     document.getElementById('loadTranslationsBtn').addEventListener('click', loadTranslations);
+    // ---- Bolls Bible API (free, key-free) ----
+    const bollsSelect = document.getElementById('bollsTranslationSelect');
+    bollsSelect.innerHTML += Object.entries(BOLLS_TRANSLATIONS)
+        .map(([code, name]) => `<option value="${code}">${name} (${code})</option>`).join('');
+
+    bollsSelect.addEventListener('change', (e) => {
+        if (!e.target.value) { state.translationSource = 'bible-api'; return; }
+        state.translationSource = 'bolls';
+        state.translation = e.target.value;
+        state.translationLabel = BOLLS_TRANSLATIONS[e.target.value];
+        document.querySelectorAll('#translationToggle button').forEach(b => b.classList.remove('active'));
+        document.getElementById('extraTranslationSelect').value = '';
+    });
 
     document.getElementById('extraTranslationSelect').addEventListener('change', (e) => {
         if (!e.target.value) { state.translationSource = 'bible-api'; return; }
@@ -974,7 +1003,7 @@
                 for (let v = vStart; v <= vEnd; v++) {
                     if (state.translationSource === 'youversion') {
                         const usfm = `${parsed.book.osis}.${parsed.chapter}.${v}`;
-                        const url = `https://api.youversion.com/v1/bibles/${state.apiBibleId}/passages/${usfm}`;
+                        const url = `https://api.youversion.com/v1/bibles/${state.apiBibleId}/passages/${usfm}?format=text`;
                         const res = await fetch(url, { headers: { 'X-YVP-App-Key': state.providerKey } });
                         if (!res.ok) throw new Error(`Could not fetch that verse (status ${res.status}) — your account may not have access to it.`);
                         const data = await parseJsonResponse(res);
@@ -1003,6 +1032,31 @@
                     }
                 }
                 state.verseList = verses;
+            } else if (state.translationSource === 'bolls') {
+                const parsed = parseReference(refText);
+                if (!parsed) throw new Error('Please choose a book and chapter above, or type a reference like "John 3:16".');
+                const bookNum = bookData.indexOf(parsed.book) + 1;
+                const vStart = parsed.verseStart || 1;
+                const vEnd = parsed.verseEnd || vStart;
+                const verseNumbers = [];
+                for (let v = vStart; v <= vEnd; v++) verseNumbers.push(v);
+
+                const res = await fetch('https://bolls.life/get-verses/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify([{ translation: state.translation, book: bookNum, chapter: parsed.chapter, verses: verseNumbers }])
+                });
+                if (!res.ok) throw new Error(`Could not fetch that passage (status ${res.status}).`);
+                const data = await res.json();
+                const versesRaw = data[0] || [];
+                if (!versesRaw.length) throw new Error('That reference came back empty for this translation.');
+
+                state.verseList = versesRaw.map(v => ({
+                    reference: `${parsed.book.name} ${parsed.chapter}:${v.verse}`,
+                    text: v.text.replace(/<[^>]+>/g, '').trim(),
+                    translation: state.translation,
+                    translationName: state.translationLabel
+                }));
             } else {
                 const url = `https://bible-api.com/${encodeURIComponent(refText)}?translation=${state.translation}`;
                 const res = await fetch(url);
