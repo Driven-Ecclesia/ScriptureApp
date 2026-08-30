@@ -39,25 +39,21 @@
     display:flex;
     flex-direction:column;
     align-items:center;
-    justify-content:center;
-    padding: 6vh 8vw;
+    padding: 2.5vh 8vw 5vh;
     text-align:center;
     position:relative;
     z-index:2;
     }
     #content{
-    max-height: 80vh;
-    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
     width: 100%;
     display:flex;
     flex-direction:column;
     align-items:center;
     justify-content:center;
-    scrollbar-width: thin;
-    scrollbar-color: var(--gold) transparent;
     }
-    #content::-webkit-scrollbar{ width:6px; }
-    #content::-webkit-scrollbar-thumb{ background: var(--gold); border-radius:3px; }
 
     #slideLayer{
         position:fixed; inset:0;
@@ -83,21 +79,23 @@
     }
     .points-text{
         white-space:pre-wrap;
+        overflow-wrap:break-word;
+        word-break:break-word;
         text-align:left;
         max-width:1000px;
+        width:100%;
         margin:0 auto;
         color:#ffffff;
         line-height:1.6;
     }
     
     .brand-header{
-        position:absolute;
-        top:4vh;
-        left:0; right:0;
+        flex: 0 0 auto;
         display:flex;
         flex-direction:column;
         align-items:center;
         gap:10px;
+        margin-bottom: 2.5vh;
     }
     .brand-header img{
         height:3.2vh;
@@ -114,6 +112,8 @@
     }
     .verse-text{
         line-height:1.5;
+        overflow-wrap:break-word;
+        word-break:break-word;
         max-width: 1100px;
         color:#ffffff;
         transition: opacity 0.4s ease;
@@ -145,9 +145,8 @@
         display:block;
     }
     .connection-note{
-        position:absolute;
-        bottom:3vh;
-        left:0; right:0;
+        flex: 0 0 auto;
+        margin-top: 2vh;
         text-align:center;
         font-size:0.8vw;
         color:#5a6690;
@@ -229,14 +228,18 @@
         return 1.1;                   // extremely long passages / multi-verse ranges
     }
 
-    // Same shrink-to-fit idea, but based on the combined length of the title + all
-    // points, since a points list can grow long as more points are added live.
-    function getPointsFontSize(totalChars) {
-        if (totalChars <= 150) return 2.6;
-        if (totalChars <= 300) return 2.2;
-        if (totalChars <= 500) return 1.8;
-        if (totalChars <= 750) return 1.5;
-        return 1.25;
+    // Shrinks el's font-size (in vw) step by step until its content fits inside
+    // container's height with no overflow — used instead of scrolling so text
+    // never spills over the logo/community name or off the bottom of the screen.
+    function fitTextToContainer(el, container, minVw) {
+        let size = parseFloat(el.style.fontSize) || 2;
+        let guard = 0;
+        while (container.scrollHeight > container.clientHeight + 1 && size > minVw && guard < 100) {
+            size -= 0.08;
+            el.style.fontSize = size.toFixed(2) + 'vw';
+            guard++;
+        }
+        return size;
     }
 
     function showSlide(url) {
@@ -257,24 +260,32 @@
             content.style.opacity = 0;
             setTimeout(() => {
                 content.innerHTML = `
-                    <div class="verse-text" style="font-size:${fontSize}vw;">${escapeHtml(v.text)}</div>
+                    <div class="verse-text" id="verseTextEl" style="font-size:${fontSize}vw;">${escapeHtml(v.text)}</div>
                     <div class="rule"></div>
                     <div class="verse-ref">${escapeHtml(v.reference)} &mdash; ${escapeHtml(v.translationName)}</div>
                 `;
+                const verseEl = document.getElementById('verseTextEl');
+                if (verseEl) fitTextToContainer(verseEl, content, 0.6);
                 content.style.opacity = 1;
             }, 200);
         } else if (msg.type === 'show_points') {
             const title = msg.title || '';
             const text = msg.text || '';
-            const totalChars = title.length + text.length;
-            const fontSize = getPointsFontSize(totalChars);
-            const titleHtml = title ? `<div class="points-title">${escapeHtml(title)}</div>` : '';
+            const titleHtml = title ? `<div class="points-title" id="pointsTitleEl">${escapeHtml(title)}</div>` : '';
             const textHtml = text
-                ? `<div class="points-text" style="font-size:${fontSize}vw;">${escapeHtml(text)}</div>`
+                ? `<div class="points-text" id="pointsTextEl" style="font-size:2.6vw;">${escapeHtml(text)}</div>`
                 : `<div class="placeholder"><span class="cross">&#10013;</span>Waiting for notes…</div>`;
             content.style.opacity = 0;
             setTimeout(() => {
                 content.innerHTML = titleHtml + textHtml;
+                const textEl = document.getElementById('pointsTextEl');
+                const titleEl = document.getElementById('pointsTitleEl');
+                if (textEl) {
+                    const finalSize = fitTextToContainer(textEl, content, 0.6);
+                    // Keep the title in proportion to the body text instead of towering over
+                    // a heavily-shrunk body when the notes are very long.
+                    if (titleEl) titleEl.style.fontSize = Math.min(2.2, finalSize + 0.6) + 'vw';
+                }
                 content.style.opacity = 1;
             }, 200);
         } else if (msg.type === 'show_slide') {
