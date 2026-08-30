@@ -1038,25 +1038,23 @@
                 const bookNum = bookData.indexOf(parsed.book) + 1;
                 const vStart = parsed.verseStart || 1;
                 const vEnd = parsed.verseEnd || vStart;
-                const verseNumbers = [];
-                for (let v = vStart; v <= vEnd; v++) verseNumbers.push(v);
+                if (vEnd - vStart > 40) throw new Error('That range is too long — try a shorter passage.');
 
-                const res = await fetch('https://bolls.life/get-verses/', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify([{ translation: state.translation, book: bookNum, chapter: parsed.chapter, verses: verseNumbers }])
-                });
-                if (!res.ok) throw new Error(`Could not fetch that passage (status ${res.status}).`);
-                const data = await res.json();
-                const versesRaw = data[0] || [];
-                if (!versesRaw.length) throw new Error('That reference came back empty for this translation.');
-
-                state.verseList = versesRaw.map(v => ({
-                    reference: `${parsed.book.name} ${parsed.chapter}:${v.verse}`,
-                    text: v.text.replace(/<[^>]+>/g, '').trim(),
-                    translation: state.translation,
-                    translationName: state.translationLabel
-                }));
+                const verses = [];
+                for (let v = vStart; v <= vEnd; v++) {
+                    const url = `https://bolls.life/get-verse/${state.translation}/${bookNum}/${parsed.chapter}/${v}/`;
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`Could not fetch that verse (status ${res.status}).`);
+                    const v_data = await res.json();
+                    if (!v_data || !v_data.text) throw new Error('That verse came back empty for this translation.');
+                    verses.push({
+                        reference: `${parsed.book.name} ${parsed.chapter}:${v}`,
+                        text: v_data.text.replace(/<[^>]+>/g, '').trim(),
+                        translation: state.translation,
+                        translationName: state.translationLabel
+                    });
+                }
+                state.verseList = verses;
             } else {
                 const url = `https://bible-api.com/${encodeURIComponent(refText)}?translation=${state.translation}`;
                 const res = await fetch(url);
