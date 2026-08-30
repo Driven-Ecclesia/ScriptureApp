@@ -510,6 +510,12 @@
     </div>
 
     <div class="card">
+        <h2>Music</h2>
+        <div class="hint" style="margin-bottom:12px;">Plays silently in the background on the display — nothing is shown on screen. Only one song plays at a time; pressing Play on another song stops the current one.</div>
+        <div class="points-list" id="songList" style="max-height:none;"></div>
+    </div>
+
+    <div class="card">
         <h2>How to Use This With Google Meet</h2>
         <div style="font-size:13.5px; line-height:1.7; color:#3a3527;">
             1. Click <strong>"Open Display Window"</strong> — a second, clean window opens showing only the scripture (no controls).<br>
@@ -525,6 +531,12 @@
 <footer>Scripture Display &middot; Built for community worship &amp; study</footer>
 
 <script>
+    // Add one line per MP3 you drop into the /audio/ folder in the repo.
+    const SONGS = [
+        { title: 'Song One', url: 'audio/song-one.mp3' },
+        { title: 'Song Two', url: 'audio/song-two.mp3' }
+    ];
+
     // ---- Bible book data (name, OSIS code, chapter count) ----
     const bookData = [
         {name:"Genesis", osis:"GEN", chapters:50}, {name:"Exodus", osis:"EXO", chapters:40},
@@ -584,6 +596,45 @@
         CEVD: 'Contemporary English Version',
         MSG: 'The Message'
     };
+    // ---- Music ----
+    let currentSongUrl = null;
+
+    function renderSongList() {
+        const el = document.getElementById('songList');
+        if (!SONGS.length) {
+            el.innerHTML = '<div class="empty-note">No songs added yet — add MP3s to /audio/ and list them in SONGS.</div>';
+            return;
+        }
+        el.innerHTML = SONGS.map(s => {
+            const isPlaying = currentSongUrl === s.url;
+            return `
+                <div class="points-item">
+                    <span class="txt">${escapeHtml(s.title)}${isPlaying ? ' <span class="tag">Now Playing</span>' : ''}</span>
+                    <span>
+                        <button class="secondary small" data-play="${escapeHtml(s.url)}" data-title="${escapeHtml(s.title)}" ${isPlaying ? 'disabled' : ''}>Play</button>
+                        <button class="secondary small" data-stop="${escapeHtml(s.url)}" ${isPlaying ? '' : 'disabled'}>Stop</button>
+                    </span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    document.getElementById('songList').addEventListener('click', (e) => {
+        const playUrl = e.target.dataset.play;
+        const stopUrl = e.target.dataset.stop;
+        if (playUrl) {
+            currentSongUrl = playUrl;
+            sendToRoom({ type: 'play_music', url: playUrl, title: e.target.dataset.title });
+            renderSongList();
+        } else if (stopUrl) {
+            currentSongUrl = null;
+            sendToRoom({ type: 'stop_music' });
+            renderSongList();
+        }
+    });
+
+    renderSongList();
+
     function sendToRoom(payload) {
         window.firebaseSet(
             window.firebaseRef(window.firebaseDb, 'rooms/' + state.roomCode),
