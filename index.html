@@ -88,9 +88,9 @@
     input[type=text]:focus, select:focus{ outline:2px solid var(--gold); border-color:var(--gold); }
     select:disabled{ opacity:0.55; cursor:not-allowed; }
 
-    .translation-toggle{ display:flex; gap:6px; }
+    .translation-toggle{ display:flex; gap:6px; flex-wrap:wrap; }
     .translation-toggle button{
-        flex:1;
+        flex: 1 1 30%;
         padding:10px 8px;
         border:1px solid #d8ceac;
         background:#fffdf7;
@@ -409,72 +409,16 @@
         <div class="field" style="margin-top:14px;">
             <label>Translation</label>
             <div class="translation-toggle" id="translationToggle">
-                <button data-t="kjv" class="active">KJV</button>
-                <button data-t="web">WEB</button>
-                <button data-t="asv">ASV</button>
+                <button data-t="kjv" data-src="bible-api" class="active">KJV</button>
+                <button data-t="NKJV" data-src="bolls">NKJV</button>
+                <button data-t="NIV" data-src="bolls">NIV</button>
+                <button data-t="NLT" data-src="bolls">NLT</button>
+                <button data-t="AMP" data-src="bolls">AMP</button>
+                <button data-t="CEVD" data-src="bolls">CEV</button>
+                <button data-t="MSG" data-src="bolls">MSG</button>
             </div>
-            <div class="hint">King James Version &middot; World English Bible &middot; American Standard Version — all public domain, fetched free with no key needed.</div>
+            <div class="hint">KJV is public domain. The others are fetched free via the Bolls Bible API — no key needed.</div>
         </div>
-
-        <div class="field" style="margin-top:14px;" id="extraTranslationWrap">
-            <label>Translation (extra)</label>
-            <select id="extraTranslationSelect">
-                <option value="">— select a translation —</option>
-            </select>
-            <div class="hint">Selecting one here overrides the KJV/WEB/ASV buttons above. Whole-chapter lookups aren't supported for these — enter a specific verse or range.</div>
-        </div>
-        <div class="field" style="margin-top:14px;">
-            <label>More Translations — NKJV, NIV, NLT, Amplified, CSB (no key needed)</label>
-            <select id="bollsTranslationSelect">
-                <option value="">— select a translation —</option>
-            </select>
-            <div class="hint">Free, no signup — overrides the other translation choices above when selected.</div>
-        </div>
-
-        <!-- Provider/key setup runs in the background using DEFAULT_PROVIDER_KEYS in the script — intentionally hidden from the UI. -->
-        <div style="display:none;">
-            <select id="providerSelect">
-                <option value="youversion">YouVersion Platform</option>
-                <option value="apibible">API.Bible</option>
-            </select>
-            <input type="text" id="providerKey">
-            <button id="loadTranslationsBtn">Load Translations</button>
-            <div id="providerHint"></div>
-            <div class="error-msg" id="apiBibleError"></div>
-        </div>
-        
-        <!-- <div class="field" style="margin-top:14px;">
-            <label>More translations (NIV, NLT, Amplified, etc.)</label>
-            <div class="hint">
-                Modern translations are copyrighted, so they can't be pulled from a free, open source the way KJV/WEB/ASV can.
-                Pick a licensed provider below, add a free key, and load whatever translations that account gives you access to.
-            </div>
-            <div class="row" style="margin-top:8px;">
-                <div class="field">
-                    <label for="providerSelect">Provider</label>
-                    <select id="providerSelect">
-                        <option value="youversion">YouVersion Platform (free, includes NIV — recommended)</option>
-                        <option value="apibible">API.Bible</option>
-                    </select>
-                </div>
-            </div>
-            <div class="row" style="margin-top:8px;">
-                <div class="field">
-                    <input type="text" id="providerKey" placeholder="App key / API key (optional)">
-                </div>
-                <div class="field" style="flex:0 0 auto;">
-                    <button class="secondary small" id="loadTranslationsBtn">Load Translations</button>
-                </div>
-            </div>
-            <div class="hint" id="providerHint"></div>
-            <div class="field" id="extraTranslationWrap" style="margin-top:8px; display:none;">
-                <select id="extraTranslationSelect">
-                    <option value="">— select a translation —</option>
-                </select>
-                <div class="hint">Selecting one here overrides the KJV/WEB/ASV buttons above. Whole-chapter lookups aren't supported for these — enter a specific verse or range.</div>
-            </div>
-            <div class="error-msg" id="apiBibleError"></div>
-        </div> -->
 
         <div class="preview" id="previewBox">
             <div class="placeholder">Search a reference above to preview it here before sending it to the display.</div>
@@ -502,9 +446,7 @@
             2. In Google Meet, click <strong>Present now &rarr; A window</strong>, and select that Display window specifically (not your whole screen).<br>
             3. Come back to this control panel — search, preview, and click <strong>"Send to Display"</strong>. Your congregation only ever sees the clean display window updating; they never see this control panel.<br>
             4. If you look up a range of verses (e.g. Romans 8:1-4), only one verse shows on the display at a time — use the <strong>Prev / Next</strong> buttons in the preview to step through the passage and send each verse when you're ready for it.<br>
-            5. Want NIV, NLT, Amplified, or similar? Register a free app key at
-            <a href="https://platform.youversion.com" target="_blank" rel="noopener">platform.youversion.com</a>
-            (recommended — free, non-commercial, includes NIV), paste it into "More translations," and click Load Translations.
+            5. Want NKJV, NIV, NLT, Amplified, CEV, or MSG? Just tap that translation button — no key or signup needed.
         </div>
     </div>
 
@@ -513,15 +455,6 @@
 <footer>Scripture Display &middot; Built for community worship &amp; study</footer>
 
 <script>
-    // ---- Optional: hardcode a default provider key here so it works without pasting it in.
-    // WARNING: this file is a static HTML page — anyone who views its source (or the deployed
-    // page) can see whatever key is written here. Fine for a free, rate-limited, non-commercial
-    // key used only by your team; don't put anything more sensitive here.
-    const DEFAULT_PROVIDER_KEYS = {
-        youversion: '9yAwowWGBspML81GLtD64maDr2A28GlHMmg6J7c375JlUY1p',   // paste your YouVersion Platform app key between these quotes
-        apibible: ''      // paste your API.Bible key between these quotes, if you use that instead
-    };
-
     // ---- Bible book data (name, OSIS code, chapter count) ----
     const bookData = [
         {name:"Genesis", osis:"GEN", chapters:50}, {name:"Exodus", osis:"EXO", chapters:40},
@@ -561,9 +494,7 @@
 
         const state = {
         translation: 'kjv',
-        translationSource: 'bible-api', // 'bible-api' | 'api-bible'
-        apiBibleKey: '',
-        apiBibleId: '',
+        translationSource: 'bible-api', // 'bible-api' | 'bolls'
         translationLabel: '',
         currentVerse: null,
         verseList: [],
@@ -573,13 +504,14 @@
         roomCode: localStorage.getItem('scripture_room_code') || 'main'
     };
 
-    const translationNames = { kjv: 'King James Version', web: 'World English Bible', asv: 'American Standard Version' };
+    const translationNames = { kjv: 'King James Version' };
     const BOLLS_TRANSLATIONS = {
-    NKJV: 'New King James Version',
-    NIV: 'New International Version',
-    NLT: 'New Living Translation',
-    AMP: 'Amplified Bible',
-    CSB: 'Christian Standard Bible'
+        NKJV: 'New King James Version',
+        NIV: 'New International Version',
+        NLT: 'New Living Translation',
+        AMP: 'Amplified Bible',
+        CEVD: 'Contemporary English Version',
+        MSG: 'The Message'
     };
     function sendToRoom(payload) {
         window.firebaseSet(
@@ -842,137 +774,21 @@
         setModeUI();
     });
 
-    // ---- Translation toggle (built-in, public domain) ----
+    // ---- Translation toggle (KJV via bible-api.com, others via Bolls) ----
     document.getElementById('translationToggle').addEventListener('click', (e) => {
         if (e.target.tagName !== 'BUTTON') return;
         document.querySelectorAll('#translationToggle button').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
-        state.translation = e.target.dataset.t;
-        state.translationSource = 'bible-api';
-        const extraSel = document.getElementById('extraTranslationSelect');
-        if (extraSel) extraSel.value = '';
+        const t = e.target.dataset.t;
+        if (e.target.dataset.src === 'bolls') {
+            state.translationSource = 'bolls';
+            state.translation = t;
+            state.translationLabel = BOLLS_TRANSLATIONS[t];
+        } else {
+            state.translationSource = 'bible-api';
+            state.translation = t;
+        }
     });
-
-    // ---- Extra translations via a licensed provider (user-supplied key) ----
-    const providerSelect = document.getElementById('providerSelect');
-    const providerKeyInput = document.getElementById('providerKey');
-    const providerHint = document.getElementById('providerHint');
-
-    const providerHints = {
-        youversion: 'Free, non-commercial "App Key" from platform.youversion.com — their catalog includes the NIV.',
-        apibible: 'Free key from scripture.api.bible — free tier is mostly public-domain texts; NIV/NLT/Amplified usually need publisher approval on that account.'
-    };
-    function updateProviderHint() {
-        providerHint.textContent = providerHints[providerSelect.value];
-        const savedKey = localStorage.getItem('scripture_provider_key_' + providerSelect.value)
-            || DEFAULT_PROVIDER_KEYS[providerSelect.value]
-            || '';
-        providerKeyInput.value = savedKey;
-    }
-    providerSelect.addEventListener('change', updateProviderHint);
-    updateProviderHint();
-
-    async function parseJsonResponse(res) {
-        if (res.status === 204) {
-            // YouVersion's documented behavior: 204 = success, but nothing matched the filters.
-            return null;
-        }
-        const raw = await res.text();
-        if (!raw) {
-            throw new Error(`The server responded with status ${res.status} but sent no data back.`);
-        }
-        try {
-            return JSON.parse(raw);
-        } catch (e) {
-            throw new Error(`Got an unexpected (non-JSON) response, status ${res.status}: ${raw.slice(0, 200)}`);
-        }
-    }
-
-    async function loadTranslations() {
-        const provider = providerSelect.value;
-        const key = providerKeyInput.value.trim();
-        const errEl = document.getElementById('apiBibleError');
-        errEl.textContent = '';
-        if (!key) { errEl.textContent = 'Paste your key first.'; return; }
-
-        try {
-            const sel = document.getElementById('extraTranslationSelect');
-            if (provider === 'youversion') {
-                // Without all_available=true this only returns the small default set enabled
-                // for your app key (a handful of public-domain texts) — NOT the full catalog,
-                // which is where NIV/NKJV/NLT/Amplified/CSB actually live.
-                let res = await fetch('https://api.youversion.com/v1/bibles?language_ranges[]=eng&all_available=true', {
-                    headers: { 'X-YVP-App-Key': key, 'Accept': 'application/json' }
-                });
-                if (!res.ok) throw new Error(`Could not verify that app key (status ${res.status}). Double check it and try again.`);
-                let data = await parseJsonResponse(res);
-
-                // 204 / empty list: retry once without the language filter, in case that param format is the mismatch.
-                let list = data ? (data.data || data.bibles || data.results || []) : [];
-                if (!list.length) {
-                    res = await fetch('https://api.youversion.com/v1/bibles?all_available=true', {
-                        headers: { 'X-YVP-App-Key': key, 'Accept': 'application/json' }
-                    });
-                    if (res.ok) {
-                        data = await parseJsonResponse(res);
-                        list = data ? (data.data || data.bibles || data.results || []) : [];
-                    }
-                }
-                if (!list.length) throw new Error('Your app key is valid, but no Bible versions came back. On platform.youversion.com, check that your app has been approved and that you\'ve accepted the Bible catalog license — that approval step is what unlocks the version list.');
-                sel.innerHTML = '<option value="">— select a translation —</option>' +
-                    list.map(b => {
-                        const id = b.id ?? b.bible_id;
-                        const title = b.title || b.local_title || b.abbreviation || ('Bible ' + id);
-                        const abbr = b.abbreviation || b.local_abbreviation || '';
-                        return `<option value="${id}">${escapeHtml(title)}${abbr ? ' (' + escapeHtml(abbr) + ')' : ''}</option>`;
-                    }).join('');
-            } else {
-                const res = await fetch('https://api.scripture.api.bible/v1/bibles?language=eng', {
-                    headers: { 'api-key': key }
-                });
-                if (!res.ok) throw new Error(`Could not verify that key (status ${res.status}). Double check it and try again.`);
-                const data = await parseJsonResponse(res);
-                sel.innerHTML = '<option value="">— select a translation —</option>' +
-                    data.data.map(b => `<option value="${b.id}">${escapeHtml(b.name)} (${escapeHtml(b.abbreviation)})</option>`).join('');
-            }
-            document.getElementById('extraTranslationWrap').style.display = 'block';
-            state.providerKey = key;
-            state.provider = provider;
-            localStorage.setItem('scripture_provider_key_' + provider, key);
-        } catch (err) {
-            errEl.textContent = err.message;
-        }
-    } 
-    document.getElementById('loadTranslationsBtn').addEventListener('click', loadTranslations);
-    // ---- Bolls Bible API (free, key-free) ----
-    const bollsSelect = document.getElementById('bollsTranslationSelect');
-    bollsSelect.innerHTML += Object.entries(BOLLS_TRANSLATIONS)
-        .map(([code, name]) => `<option value="${code}">${name} (${code})</option>`).join('');
-
-    bollsSelect.addEventListener('change', (e) => {
-        if (!e.target.value) { state.translationSource = 'bible-api'; return; }
-        state.translationSource = 'bolls';
-        state.translation = e.target.value;
-        state.translationLabel = BOLLS_TRANSLATIONS[e.target.value];
-        document.querySelectorAll('#translationToggle button').forEach(b => b.classList.remove('active'));
-        document.getElementById('extraTranslationSelect').value = '';
-    });
-
-    document.getElementById('extraTranslationSelect').addEventListener('change', (e) => {
-        if (!e.target.value) { state.translationSource = 'bible-api'; return; }
-        state.translationSource = state.provider === 'youversion' ? 'youversion' : 'api-bible';
-        state.apiBibleId = e.target.value;
-        state.translationLabel = e.target.selectedOptions[0].textContent;
-        document.querySelectorAll('#translationToggle button').forEach(b => b.classList.remove('active'));
-    });
-
-    // Auto-load if a key was saved previously (or hardcoded above) for the currently selected provider
-    const preloadKey = localStorage.getItem('scripture_provider_key_' + providerSelect.value)
-        || DEFAULT_PROVIDER_KEYS[providerSelect.value];
-    if (preloadKey) {
-        providerKeyInput.value = preloadKey;
-        loadTranslations();
-    }
 
     // ---- Fetch scripture ----
     const previewBox = document.getElementById('previewBox');
@@ -990,49 +806,7 @@
         state.verseIndex = 0;
 
         try {
-            if (state.translationSource === 'api-bible' || state.translationSource === 'youversion') {
-                const parsed = parseReference(refText);
-                if (!parsed) throw new Error('Please choose a book and chapter above, or type a reference like "John 3:16".');
-                if (!parsed.verseStart) throw new Error('Additional translations need a specific verse or range (e.g. "John 3:16" or "Romans 8:1-4") — whole-chapter lookups only work with KJV/WEB/ASV.');
-                const vStart = parsed.verseStart;
-                const vEnd = parsed.verseEnd || parsed.verseStart;
-                if (vEnd < vStart) throw new Error('That verse range looks off — check the order.');
-                if (vEnd - vStart > 40) throw new Error('That range is too long — try a shorter passage.');
-
-                const verses = [];
-                for (let v = vStart; v <= vEnd; v++) {
-                    if (state.translationSource === 'youversion') {
-                        const usfm = `${parsed.book.osis}.${parsed.chapter}.${v}`;
-                        const url = `https://api.youversion.com/v1/bibles/${state.apiBibleId}/passages/${usfm}?format=text`;
-                        const res = await fetch(url, { headers: { 'X-YVP-App-Key': state.providerKey } });
-                        if (!res.ok) throw new Error(`Could not fetch that verse (status ${res.status}) — your account may not have access to it.`);
-                        const data = await parseJsonResponse(res);
-                        if (!data) throw new Error('That verse came back empty for this translation — the passage or Bible ID may not be valid for your account.');
-                        const passage = data.data || data;
-                        const rawText = passage.content || passage.text || '';
-                        verses.push({
-                            reference: (passage.reference && (passage.reference.human || passage.reference)) || `${parsed.book.name} ${parsed.chapter}:${v}`,
-                            text: rawText.replace(/<[^>]+>/g, '').trim(),
-                            translation: state.apiBibleId,
-                            translationName: state.translationLabel
-                        });
-                    } else {
-                        const verseId = `${parsed.book.osis}.${parsed.chapter}.${v}`;
-                        const url = `https://api.scripture.api.bible/v1/bibles/${state.apiBibleId}/verses/${verseId}?content-type=text&include-verse-numbers=false&include-notes=false&include-titles=false`;
-                        const res = await fetch(url, { headers: { 'api-key': state.providerKey } });
-                        if (!res.ok) throw new Error(`Could not fetch that verse (status ${res.status}) — your account may not have access to it.`);
-                        const data = await parseJsonResponse(res);
-                        if (!data) throw new Error('That verse came back empty for this translation.');
-                        verses.push({
-                            reference: data.data.reference,
-                            text: data.data.content.trim(),
-                            translation: state.apiBibleId,
-                            translationName: state.translationLabel
-                        });
-                    }
-                }
-                state.verseList = verses;
-            } else if (state.translationSource === 'bolls') {
+            if (state.translationSource === 'bolls') {
                 const parsed = parseReference(refText);
                 if (!parsed) throw new Error('Please choose a book and chapter above, or type a reference like "John 3:16".');
                 const bookNum = bookData.indexOf(parsed.book) + 1;
