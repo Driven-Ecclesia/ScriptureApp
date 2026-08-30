@@ -88,6 +88,21 @@
     input[type=text]:focus, select:focus{ outline:2px solid var(--gold); border-color:var(--gold); }
     select:disabled{ opacity:0.55; cursor:not-allowed; }
 
+    textarea{
+        width:100%;
+        padding:10px 12px;
+        border:1px solid #d8ceac;
+        border-radius:4px;
+        font-family:inherit;
+        font-size:14px;
+        background:#fffdf7;
+        color:var(--text);
+        resize:vertical;
+        min-height:120px;
+        line-height:1.5;
+    }
+    textarea:focus{ outline:2px solid var(--gold); border-color:var(--gold); }
+
     .translation-toggle{ display:flex; gap:6px; flex-wrap:wrap; }
     .translation-toggle button{
         flex: 1 1 30%;
@@ -148,6 +163,13 @@
     .preview .verse-text{ font-size:18px; line-height:1.6; margin-bottom:12px; }
     .preview .verse-ref{ font-size:13px; color:var(--gold-soft); letter-spacing:0.5px; }
     .preview .placeholder{ color:#7c88ab; font-style:italic; font-size:14px; }
+    .preview .preview-points-title{ font-size:16px; color:var(--gold-soft); font-style:italic; margin-bottom:12px; }
+    .preview .preview-points-text{
+        white-space:pre-wrap;
+        font-size:15px;
+        line-height:1.7;
+        color:var(--cream);
+    }
 
     .verse-stepper{
         display:flex;
@@ -459,20 +481,19 @@
             <label for="teachingTitleInput">Teaching title (optional)</label>
             <input type="text" id="teachingTitleInput" placeholder="e.g. Faith That Moves Mountains" autocomplete="off">
         </div>
-        <div class="row" style="margin-top:12px;">
-            <div class="field" style="flex:3;">
-                <label for="pointInput">Point</label>
-                <input type="text" id="pointInput" placeholder="Type a point and press Add…" autocomplete="off">
-            </div>
-            <div class="field">
-                <button class="primary" id="addPointBtn" style="width:100%;">Add Point</button>
-            </div>
+        <div class="field" style="margin-top:12px;">
+            <label for="pointsTextarea">Notes / Definitions (type freely — formatting is kept exactly as you type it)</label>
+            <textarea id="pointsTextarea" rows="8" placeholder="Wisdom is this, this and this&#10;&#10;Types of wisdom&#10;1. This, this and this&#10;2. That, this and that"></textarea>
         </div>
-        <div class="points-list" id="pointsList">
-            <div class="empty-note">Points you add will appear here, and on the display, as a running list.</div>
+        <div class="hint">Type however you naturally would — paragraphs, your own numbering, definitions. It shows on the display exactly as typed. The preview below updates as you type — nothing goes to the display until you click "Send to Display."</div>
+
+        <div class="preview" id="pointsPreviewBox">
+            <div class="placeholder">Type points above to preview how they'll look on the display.</div>
         </div>
+
         <div class="actions">
-            <button class="secondary" id="clearPointsBtn">Clear All Points</button>
+            <button class="primary" id="sendPointsBtn" disabled>Send to Display &rarr;</button>
+            <button class="secondary" id="clearPointsBtn">Clear</button>
         </div>
     </div>
 
@@ -648,52 +669,41 @@
     });
 
     // ---- Points Display ----
-    const pointsListEl = document.getElementById('pointsList');
-    const pointInput = document.getElementById('pointInput');
     const teachingTitleInput = document.getElementById('teachingTitleInput');
+    const pointsTextarea = document.getElementById('pointsTextarea');
+    const pointsPreviewBox = document.getElementById('pointsPreviewBox');
+    const sendPointsBtn = document.getElementById('sendPointsBtn');
 
-    function renderPointsList() {
-        if (state.points.length === 0) {
-            pointsListEl.innerHTML = '<div class="empty-note">Points you add will appear here, and on the display, as a running list.</div>';
+    function renderPointsPreview() {
+        const title = teachingTitleInput.value.trim();
+        const text = pointsTextarea.value.trim();
+        if (!text && !title) {
+            pointsPreviewBox.innerHTML = '<div class="placeholder">Type above to preview how it\'ll look on the display.</div>';
+            sendPointsBtn.disabled = true;
             return;
         }
-        pointsListEl.innerHTML = state.points.map((p, i) => `
-            <div class="points-item">
-                <span class="txt">${i + 1}. ${escapeHtml(p)}</span>
-                <button class="remove-btn" data-index="${i}" title="Remove">&times;</button>
-            </div>
-        `).join('');
-        pointsListEl.querySelectorAll('.remove-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                state.points.splice(parseInt(btn.dataset.index, 10), 1);
-                renderPointsList();
-                sendPointsToDisplay();
-            });
+        const titleHtml = title ? `<div class="preview-points-title">${escapeHtml(title)}</div>` : '';
+        const textHtml = text ? `<div class="preview-points-text">${escapeHtml(text)}</div>` : '';
+        pointsPreviewBox.innerHTML = titleHtml + textHtml;
+        sendPointsBtn.disabled = false;
+    }
+
+    teachingTitleInput.addEventListener('input', renderPointsPreview);
+    pointsTextarea.addEventListener('input', renderPointsPreview);
+    renderPointsPreview();
+
+    sendPointsBtn.addEventListener('click', () => {
+        sendToRoom({
+            type: 'show_points',
+            title: teachingTitleInput.value.trim(),
+            text: pointsTextarea.value.trim()
         });
-    }
-
-    function sendPointsToDisplay() {
-        sendToRoom({ type: 'show_points', title: teachingTitleInput.value.trim(), points: state.points });
-    }
-
-    document.getElementById('addPointBtn').addEventListener('click', () => {
-        const val = pointInput.value.trim();
-        if (!val) return;
-        state.points.push(val);
-        pointInput.value = '';
-        renderPointsList();
-        sendPointsToDisplay();
-        pointInput.focus();
-    });
-    pointInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') document.getElementById('addPointBtn').click();
     });
 
     document.getElementById('clearPointsBtn').addEventListener('click', () => {
-        state.points = [];
         teachingTitleInput.value = '';
-        renderPointsList();
-        sendToRoom({ type: 'clear' });
+        pointsTextarea.value = '';
+        renderPointsPreview();
     });
 
     // ---- Full Slide Display (offering designs, flyers, announcements) ----

@@ -81,24 +81,13 @@
         margin-bottom:3.5vh;
         font-style:italic;
     }
-    .points-ul{
-        list-style:none;
+    .points-text{
+        white-space:pre-wrap;
         text-align:left;
         max-width:1000px;
         margin:0 auto;
-    }
-    .points-ul li{
         color:#ffffff;
-        line-height:1.5;
-        margin-bottom:2.2vh;
-        padding-left:1.6em;
-        position:relative;
-    }
-    .points-ul li::before{
-        content:"—";
-        position:absolute;
-        left:0;
-        color: var(--gold);
+        line-height:1.6;
     }
     
     .brand-header{
@@ -276,16 +265,16 @@
             }, 200);
         } else if (msg.type === 'show_points') {
             const title = msg.title || '';
-            const points = msg.points || [];
-            const totalChars = title.length + points.reduce((sum, p) => sum + p.length, 0);
+            const text = msg.text || '';
+            const totalChars = title.length + text.length;
             const fontSize = getPointsFontSize(totalChars);
             const titleHtml = title ? `<div class="points-title">${escapeHtml(title)}</div>` : '';
-            const pointsHtml = points.length
-                ? `<ul class="points-ul" style="font-size:${fontSize}vw;">${points.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>`
-                : `<div class="placeholder"><span class="cross">&#10013;</span>Waiting for points…</div>`;
+            const textHtml = text
+                ? `<div class="points-text" style="font-size:${fontSize}vw;">${escapeHtml(text)}</div>`
+                : `<div class="placeholder"><span class="cross">&#10013;</span>Waiting for notes…</div>`;
             content.style.opacity = 0;
             setTimeout(() => {
-                content.innerHTML = titleHtml + pointsHtml;
+                content.innerHTML = titleHtml + textHtml;
                 content.style.opacity = 1;
             }, 200);
         } else if (msg.type === 'show_slide') {
