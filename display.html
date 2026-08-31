@@ -304,6 +304,8 @@
             `;
         } else if (msg.type === 'play_music') {
             playMusic(msg.url);
+        } else if (msg.type === 'pause_music') {
+            pauseMusic();
         } else if (msg.type === 'stop_music') {
             stopMusic();
         } else if (msg.type === 'community_name') {
@@ -341,12 +343,19 @@
     });
 
     function playMusic(url) {
-        bgAudio.src = url;
+        const sameSongPaused = bgAudio.src.endsWith(url) && bgAudio.paused && bgAudio.currentTime > 0;
+        if (!sameSongPaused) {
+            bgAudio.src = url;
+        }
         if (audioUnlocked) {
-            bgAudio.play().catch(() => {});
+            bgAudio.play().catch(err => console.error('Audio play failed:', err.message, '— src was:', bgAudio.src));
         } else {
             soundGate.style.display = 'flex';
         }
+    }
+
+    function pauseMusic() {
+        bgAudio.pause();
     }
 
     function stopMusic() {
