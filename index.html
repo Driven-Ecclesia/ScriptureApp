@@ -667,9 +667,11 @@
     const BACKGROUND_PRESETS = [
         { label: 'Default',      file: null },
         { label: 'Christmas',    file: 'backgrounds/christmas.jpg' },
-        { label: 'Barracks',  file: 'backgrounds/barracksBackground.jpeg' },
-        
-        // Add more lines here any time you upload a new image, e.g.:
+        { label: 'Barracks',  file: 'backgrounds/Barracks Display Background.png',hideBrand: true },
+        // Add "hideBrand: true" to any preset whose image already has its own logo
+        // and text baked in (like Barracks) — this hides our overlay logo/name on
+        // the display so it doesn't show twice. Leave it off for plain backgrounds.
+    
         
     ];
 
@@ -693,9 +695,9 @@
             el.addEventListener('click', () => {
                 const bg = BACKGROUND_PRESETS[parseInt(el.dataset.index)];
                 if (!bg.file) {
-                    sendToRoom({ type: 'background', mode: 'default' });
+                    sendToRoom({ type: 'background', mode: 'default', hideBrand: false });
                 } else {
-                    sendToRoom({ type: 'background', mode: 'image', value: bg.file });
+                    sendToRoom({ type: 'background', mode: 'image', value: bg.file, hideBrand: !!bg.hideBrand });
                 }
                 gallery.querySelectorAll('.bg-thumb').forEach(t => t.classList.remove('selected'));
                 el.classList.add('selected');
@@ -712,7 +714,7 @@
         row.querySelectorAll('.bg-swatch').forEach(el => {
             el.addEventListener('click', () => {
                 const c = COLOR_PRESETS[parseInt(el.dataset.index)];
-                sendToRoom({ type: 'background', mode: 'color', value: c.value });
+                sendToRoom({ type: 'background', mode: 'color', value: c.value, hideBrand: false });
                 row.querySelectorAll('.bg-swatch').forEach(s => s.classList.remove('selected'));
                 el.classList.add('selected');
                 document.querySelectorAll('.bg-thumb').forEach(t => t.classList.remove('selected'));
@@ -725,12 +727,12 @@
 
     document.getElementById('applyCustomColorBtn').addEventListener('click', () => {
         const value = document.getElementById('customColorInput').value;
-        sendToRoom({ type: 'background', mode: 'color', value });
+        sendToRoom({ type: 'background', mode: 'color', value, hideBrand: false });
         document.querySelectorAll('.bg-swatch, .bg-thumb').forEach(el => el.classList.remove('selected'));
     });
 
     document.getElementById('resetBgBtn').addEventListener('click', () => {
-        sendToRoom({ type: 'background', mode: 'default' });
+        sendToRoom({ type: 'background', mode: 'default', hideBrand: false });
         document.querySelectorAll('.bg-swatch, .bg-thumb').forEach(el => el.classList.remove('selected'));
     });
 
