@@ -534,7 +534,11 @@
     // Add one line per MP3 you drop into the /audio/ folder in the repo.
     const SONGS = [
         { title: 'Song One', url: 'audio/song-one.mp3' },
-        { title: 'Song Two', url: 'audio/song-two.mp3' }
+        { title: 'Song Two', url: 'audio/song-two.mp3' },
+        { title: 'Song Three', url: 'audio/song-three.mp3' },
+        { title: 'Song Four', url: 'audio/song-four.mp3' },
+        { title: 'Song Five', url: 'audio/song-five.mp3' },
+        { title: 'Song Six', url: 'audio/song-six.mp3' }
     ];
 
     // ---- Bible book data (name, OSIS code, chapter count) ----
@@ -598,6 +602,7 @@
     };
     // ---- Music ----
     let currentSongUrl = null;
+    let isPaused = false;
 
     function renderSongList() {
         const el = document.getElementById('songList');
@@ -606,13 +611,16 @@
             return;
         }
         el.innerHTML = SONGS.map(s => {
-            const isPlaying = currentSongUrl === s.url;
+            const isCurrent = currentSongUrl === s.url;
+            const playing = isCurrent && !isPaused;
+            const paused = isCurrent && isPaused;
             return `
                 <div class="points-item">
-                    <span class="txt">${escapeHtml(s.title)}${isPlaying ? ' <span class="tag">Now Playing</span>' : ''}</span>
+                    <span class="txt">${escapeHtml(s.title)}${playing ? ' <span class="tag">Now Playing</span>' : paused ? ' <span class="tag">Paused</span>' : ''}</span>
                     <span>
-                        <button class="secondary small" data-play="${escapeHtml(s.url)}" data-title="${escapeHtml(s.title)}" ${isPlaying ? 'disabled' : ''}>Play</button>
-                        <button class="secondary small" data-stop="${escapeHtml(s.url)}" ${isPlaying ? '' : 'disabled'}>Stop</button>
+                        <button class="secondary small" data-play="${escapeHtml(s.url)}" data-title="${escapeHtml(s.title)}" ${playing ? 'disabled' : ''}>${paused ? 'Resume' : 'Play'}</button>
+                        <button class="secondary small" data-pause="${escapeHtml(s.url)}" ${playing ? '' : 'disabled'}>Pause</button>
+                        <button class="secondary small" data-stop="${escapeHtml(s.url)}" ${isCurrent ? '' : 'disabled'}>Stop</button>
                     </span>
                 </div>
             `;
@@ -621,13 +629,20 @@
 
     document.getElementById('songList').addEventListener('click', (e) => {
         const playUrl = e.target.dataset.play;
+        const pauseUrl = e.target.dataset.pause;
         const stopUrl = e.target.dataset.stop;
         if (playUrl) {
             currentSongUrl = playUrl;
+            isPaused = false;
             sendToRoom({ type: 'play_music', url: playUrl, title: e.target.dataset.title });
+            renderSongList();
+        } else if (pauseUrl) {
+            isPaused = true;
+            sendToRoom({ type: 'pause_music' });
             renderSongList();
         } else if (stopUrl) {
             currentSongUrl = null;
+            isPaused = false;
             sendToRoom({ type: 'stop_music' });
             renderSongList();
         }
