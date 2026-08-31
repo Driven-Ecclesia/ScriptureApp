@@ -318,6 +318,7 @@
     function applyBackground(bg) {
         const bgLayer = document.getElementById('bgLayer');
         const bgOverlay = document.getElementById('bgOverlay');
+        const brandHeader = document.querySelector('.brand-header');
 
         if (bg.mode === 'default') {
             bgLayer.style.background = 'linear-gradient(180deg, #0b1730 0%, #16234a 55%, #0b1730 100%)';
@@ -328,6 +329,13 @@
         } else if (bg.mode === 'image') {
             bgLayer.style.background = `url('${bg.value}') center / cover no-repeat`;
             bgOverlay.style.background = 'rgba(0,0,0,0.45)';
+        }
+
+        // Some background images already have the Driven logo and event name
+        // baked into the picture itself. When that's the case, hide our overlay
+        // logo/name so it doesn't show twice.
+        if (brandHeader) {
+            brandHeader.style.display = bg.hideBrand ? 'none' : 'flex';
         }
     }
 
