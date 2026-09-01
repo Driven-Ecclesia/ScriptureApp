@@ -383,7 +383,11 @@
 
     function setVolume(v) {
         const vol = Math.max(0, Math.min(1, Number(v)));
-        if (isNaN(vol)) return;
+        if (isNaN(vol)) {
+            console.warn('[setVolume] Ignored invalid volume value:', v);
+            return;
+        }
+        console.log('[setVolume] Applying volume', vol, '(bgAudio.volume was', bgAudio.volume + ')');
         pendingVolume = vol;
         bgAudio.volume = vol;
         reportMusicStatus();
@@ -420,7 +424,10 @@
     const dbRef = ref(db, 'rooms/' + roomCode);
     onValue(dbRef, (snapshot) => {
         const msg = snapshot.val();
+        console.log('[room message]', roomCode, msg);
         if (msg) handleMessage(msg);
+    }, (err) => {
+        console.error('[room listener] Firebase read failed:', err);
     });
 </script>
 
