@@ -190,7 +190,7 @@
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     const firebaseConfig = {
     apiKey: "AIzaSyBowRtZf_IoFiiIPzMNNlkTxKQ2krCRJBM",
@@ -308,10 +308,6 @@
             pauseMusic();
         } else if (msg.type === 'stop_music') {
             stopMusic();
-        } else if (msg.type === 'set_volume') {
-            setVolume(msg.value);
-        } else if (msg.type === 'seek_music') {
-            seekMusic(msg.value);
         } else if (msg.type === 'community_name') {
             communityNameEl.textContent = msg.name;
         } else if (msg.type === 'background') {
@@ -347,7 +343,6 @@
     const bgAudio = document.getElementById('bgAudio');
     const soundGate = document.getElementById('soundGate');
     let audioUnlocked = false;
-    let pendingVolume = null; // volume requested before we ever got a play command
 
     soundGate.addEventListener('click', () => {
         audioUnlocked = true;
@@ -359,9 +354,6 @@
         const sameSongPaused = bgAudio.src.endsWith(url) && bgAudio.paused && bgAudio.currentTime > 0;
         if (!sameSongPaused) {
             bgAudio.src = url;
-        }
-        if (pendingVolume !== null) {
-            bgAudio.volume = pendingVolume;
         }
         if (audioUnlocked) {
             bgAudio.play().catch(err => console.error('Audio play failed:', err.message, '— src was:', bgAudio.src));
@@ -378,56 +370,13 @@
         bgAudio.pause();
         bgAudio.currentTime = 0;
         bgAudio.removeAttribute('src');
-        reportMusicStatus();
     }
 
-    function setVolume(v) {
-        const vol = Math.max(0, Math.min(1, Number(v)));
-        if (isNaN(vol)) {
-            console.warn('[setVolume] Ignored invalid volume value:', v);
-            return;
-        }
-        console.log('[setVolume] Applying volume', vol, '(bgAudio.volume was', bgAudio.volume + ')');
-        pendingVolume = vol;
-        bgAudio.volume = vol;
-        reportMusicStatus();
-    }
-
-    function seekMusic(t) {
-        const time = Number(t);
-        if (isNaN(time) || !isFinite(bgAudio.duration) || !bgAudio.duration) return;
-        bgAudio.currentTime = Math.max(0, Math.min(bgAudio.duration, time));
-    }
-
-    // ---- Report playback status back to the control panel ----
-    // Kept on its own DB path (not 'rooms/{roomCode}') so it never gets
-    // clobbered by the control panel's full-object writes to that path.
-    const musicStatusRef = ref(db, 'music_status/' + roomCode);
-    function reportMusicStatus() {
-        set(musicStatusRef, {
-            src: bgAudio.src || '',
-            currentTime: bgAudio.currentTime || 0,
-            duration: (isFinite(bgAudio.duration) && bgAudio.duration) ? bgAudio.duration : 0,
-            paused: bgAudio.paused,
-            ended: bgAudio.ended,
-            volume: bgAudio.volume,
-            timestamp: Date.now()
-        }).catch(() => {});
-    }
-    bgAudio.addEventListener('loadedmetadata', reportMusicStatus);
-    bgAudio.addEventListener('play', reportMusicStatus);
-    bgAudio.addEventListener('pause', reportMusicStatus);
-    bgAudio.addEventListener('ended', reportMusicStatus);
-    bgAudio.addEventListener('volumechange', reportMusicStatus);
-    setInterval(reportMusicStatus, 1000);
 
     const dbRef = ref(db, 'rooms/' + roomCode);
     onValue(dbRef, (snapshot) => {
         const msg = snapshot.val();
-        console.log('[room message]', roomCode, msg);
         if (msg) handleMessage(msg);
-    }, (err) => {
-        console.error('[room listener] Firebase read failed:', err);
     });
 </script>
 
