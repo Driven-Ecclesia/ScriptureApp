@@ -841,30 +841,19 @@
         updatePlayerUI();
     }
 
-    let volumeSendTimer = null;
-    function setPlayerVolume(vol, immediate) {
+    function setPlayerVolume(vol) {
         musicState.volume = Math.max(0, Math.min(100, vol));
         localStorage.setItem('scripture_volume', String(musicState.volume));
+        sendVolumeToDisplay();
         updateVolumeUI();
-        // Dragging the slider fires an 'input' event per pixel, which was
-        // sending a full Firebase write for every one of those — a write
-        // storm that can race/drop under real network conditions. Debounce
-        // while dragging, but always flush immediately on release (see the
-        // 'change' listener below) so the final position is never lost.
-        clearTimeout(volumeSendTimer);
-        if (immediate) {
-            sendVolumeToDisplay();
-        } else {
-            volumeSendTimer = setTimeout(sendVolumeToDisplay, 80);
-        }
     }
 
     function toggleMute() {
         if (musicState.volume > 0) {
             musicState.volumeBeforeMute = musicState.volume;
-            setPlayerVolume(0, true);
+            setPlayerVolume(0);
         } else {
-            setPlayerVolume(musicState.volumeBeforeMute || 80, true);
+            setPlayerVolume(musicState.volumeBeforeMute || 80);
         }
     }
 
@@ -949,7 +938,6 @@
     document.getElementById('stopBtn').addEventListener('click', stopMusicPlayer);
     document.getElementById('muteBtn').addEventListener('click', toggleMute);
     document.getElementById('volumeSlider').addEventListener('input', (e) => setPlayerVolume(parseInt(e.target.value, 10)));
-    document.getElementById('volumeSlider').addEventListener('change', (e) => setPlayerVolume(parseInt(e.target.value, 10), true));
 
     const playerSeekEl = document.getElementById('playerSeek');
     playerSeekEl.addEventListener('mousedown', () => { musicState.seeking = true; });
@@ -994,7 +982,7 @@
         window.firebaseSet(
             window.firebaseRef(window.firebaseDb, 'rooms/' + state.roomCode),
             { ...payload, timestamp: Date.now() }
-        ).catch(err => console.error('[sendToRoom] Firebase write failed for', payload.type, err));
+        );
     }
 
     function escapeHtml(str) {
