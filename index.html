@@ -302,10 +302,79 @@
         background:#7a1f1f;
         border-color:#7a1f1f;
     }
+
+    /* ---- Music player ---- */
+    .player-bar{
+        background: var(--navy);
+        color: var(--cream);
+        border-radius:6px;
+        padding:16px 20px;
+        margin-top:14px;
+        border-left:6px solid var(--gold);
+    }
+    .player-track-title{
+        font-size:14px;
+        color: var(--gold-soft);
+        letter-spacing:0.3px;
+        margin-bottom:10px;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+    }
+    .player-progress{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        font-size:11px;
+        color:#b7c0dd;
+        font-variant-numeric: tabular-nums;
+    }
+    .player-progress span{ min-width:34px; text-align:center; flex:0 0 auto; }
+    .player-progress input[type=range]{ flex:1; accent-color: var(--gold); }
+    .player-controls{
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:10px;
+        margin:16px 0 14px 0;
+        flex-wrap:wrap;
+    }
+    .player-btn{
+        background: rgba(201,162,74,0.12);
+        border:1px solid var(--gold);
+        color: var(--gold-soft);
+        width:38px; height:38px;
+        border-radius:50%;
+        font-size:15px;
+        cursor:pointer;
+        display:flex; align-items:center; justify-content:center;
+        font-family:inherit;
+        line-height:1;
+        padding:0;
+    }
+    .player-btn:hover{ background: rgba(201,162,74,0.25); }
+    .player-btn.active{ background: var(--gold); color: var(--navy); }
+    .player-btn-main{
+        width:50px; height:50px;
+        font-size:19px;
+        background: var(--gold);
+        color: var(--navy);
+        border-color: var(--gold);
+    }
+    .player-btn-main:hover{ background:#dab456; }
+    .player-volume{ display:flex; align-items:center; gap:10px; }
+    .player-volume input[type=range]{ flex:1; accent-color: var(--gold); }
+    .points-item.now-playing{ background: rgba(201,162,74,0.12); border-radius:4px; padding-left:8px; }
+    .eq-bars{ display:inline-flex; align-items:flex-end; gap:2px; height:11px; margin-right:7px; vertical-align:middle; }
+    .eq-bars span{ width:2px; background: var(--navy-2); display:inline-block; border-radius:1px; animation: eq 0.9s ease-in-out infinite; }
+    .eq-bars span:nth-child(1){ animation-delay:0s; }
+    .eq-bars span:nth-child(2){ animation-delay:0.2s; }
+    .eq-bars span:nth-child(3){ animation-delay:0.4s; }
+    @keyframes eq{ 0%,100%{ height:3px; } 50%{ height:11px; } }
 </style>
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBowRtZf_IoFiiIPzMNNlkTxKQ2krCRJBM",
@@ -322,6 +391,7 @@
   window.firebaseDb = db;
   window.firebaseRef = ref;
   window.firebaseSet = set;
+  window.firebaseOnValue = onValue;
 </script>
 </head>
 <body>
@@ -511,8 +581,30 @@
 
     <div class="card">
         <h2>Music</h2>
-        <div class="hint" style="margin-bottom:12px;">Plays silently in the background on the display — nothing is shown on screen. Only one song plays at a time; pressing Play on another song stops the current one.</div>
-        <div class="points-list" id="songList" style="max-height:none;"></div>
+        <div class="hint" style="margin-bottom:12px;">Plays silently in the background on the display — nothing is shown on screen. Only one song plays at a time.</div>
+
+        <div class="player-bar">
+            <div class="player-track-title" id="playerTrackTitle">No song selected</div>
+            <div class="player-progress">
+                <span id="playerCurrentTime">0:00</span>
+                <input type="range" id="playerSeek" min="0" max="0" value="0" step="0.1">
+                <span id="playerDuration">0:00</span>
+            </div>
+            <div class="player-controls">
+                <button class="player-btn" id="shuffleBtn" title="Shuffle" type="button">&#128256;</button>
+                <button class="player-btn" id="prevBtn" title="Previous" type="button">&#9198;</button>
+                <button class="player-btn player-btn-main" id="playPauseBtn" title="Play" type="button">&#9654;</button>
+                <button class="player-btn" id="nextBtn" title="Next" type="button">&#9197;</button>
+                <button class="player-btn" id="stopBtn" title="Stop" type="button">&#9209;</button>
+                <button class="player-btn" id="repeatBtn" title="Repeat" type="button">&#128257;</button>
+            </div>
+            <div class="player-volume">
+                <button class="player-btn" id="muteBtn" title="Mute" type="button">&#128266;</button>
+                <input type="range" id="volumeSlider" min="0" max="100" value="80">
+            </div>
+        </div>
+
+        <div class="points-list" id="songList" style="max-height:none; margin-top:16px;"></div>
     </div>
 
     <div class="card">
@@ -600,9 +692,220 @@
         CEVD: 'Contemporary English Version',
         MSG: 'The Message'
     };
-    // ---- Music ----
-    let currentSongUrl = null;
-    let isPaused = false;
+    // ---- Music: full transport player ----
+    // `order` holds SONGS indices in current play order (sequential or shuffled).
+    // `posInOrder` is where we are within `order`, or -1 if nothing is loaded.
+    const musicState = {
+        order: SONGS.map((_, i) => i),
+        posInOrder: -1,
+        shuffle: false,
+        repeat: 'off',           // 'off' | 'all' | 'one'
+        volume: (() => {
+            const saved = parseInt(localStorage.getItem('scripture_volume'), 10);
+            return isNaN(saved) ? 80 : Math.max(0, Math.min(100, saved));
+        })(),
+        volumeBeforeMute: 80,
+        isPaused: false,
+        duration: 0,
+        currentTime: 0,
+        seeking: false,
+        endedHandled: false
+    };
+
+    function formatTime(s) {
+        if (!isFinite(s) || s < 0) s = 0;
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return m + ':' + String(sec).padStart(2, '0');
+    }
+
+    function buildSequentialOrder() {
+        return SONGS.map((_, i) => i);
+    }
+
+    function shuffleArray(arr) {
+        const a = arr.slice();
+        for (let i = a.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [a[i], a[j]] = [a[j], a[i]];
+        }
+        return a;
+    }
+
+    function currentSongIndex() {
+        return musicState.posInOrder !== -1 ? musicState.order[musicState.posInOrder] : null;
+    }
+
+    function sendVolumeToDisplay() {
+        sendToRoom({ type: 'set_volume', value: musicState.volume / 100 });
+    }
+
+    function playSongAtOrderPos(pos) {
+        if (!SONGS.length || pos < 0 || pos >= musicState.order.length) return;
+        musicState.posInOrder = pos;
+        musicState.isPaused = false;
+        musicState.duration = 0;
+        musicState.currentTime = 0;
+        musicState.endedHandled = false;
+        const song = SONGS[musicState.order[pos]];
+        sendToRoom({ type: 'play_music', url: song.url, title: song.title });
+        sendVolumeToDisplay();
+        updatePlayerUI();
+        renderSongList();
+    }
+
+    function playSongByIndex(idx) {
+        let pos = musicState.order.indexOf(idx);
+        if (pos === -1) pos = 0;
+        playSongAtOrderPos(pos);
+    }
+
+    function togglePlayPause() {
+        if (!SONGS.length) return;
+        if (musicState.posInOrder === -1) {
+            playSongAtOrderPos(0);
+            return;
+        }
+        if (!musicState.isPaused) {
+            musicState.isPaused = true;
+            sendToRoom({ type: 'pause_music' });
+        } else {
+            musicState.isPaused = false;
+            const song = SONGS[currentSongIndex()];
+            sendToRoom({ type: 'play_music', url: song.url, title: song.title });
+        }
+        updatePlayerUI();
+        renderSongList();
+    }
+
+    function playNext(auto) {
+        if (!musicState.order.length) return;
+        if (auto && musicState.repeat === 'one') {
+            playSongAtOrderPos(musicState.posInOrder);
+            return;
+        }
+        let next = musicState.posInOrder + 1;
+        if (next >= musicState.order.length) {
+            if (auto && musicState.repeat !== 'all') {
+                stopMusicPlayer();
+                return;
+            }
+            next = 0;
+        }
+        playSongAtOrderPos(next);
+    }
+
+    function playPrev() {
+        if (!musicState.order.length) return;
+        // Standard player behavior: if we're a few seconds into the song, restart it;
+        // otherwise go to the previous track.
+        if (musicState.currentTime > 3) {
+            seekTo(0);
+            return;
+        }
+        let prev = musicState.posInOrder - 1;
+        if (prev < 0) prev = musicState.order.length - 1;
+        playSongAtOrderPos(prev);
+    }
+
+    function stopMusicPlayer() {
+        musicState.posInOrder = -1;
+        musicState.isPaused = false;
+        musicState.currentTime = 0;
+        musicState.duration = 0;
+        sendToRoom({ type: 'stop_music' });
+        updatePlayerUI();
+        renderSongList();
+    }
+
+    function toggleShuffle() {
+        const curIdx = currentSongIndex();
+        musicState.shuffle = !musicState.shuffle;
+        if (musicState.shuffle) {
+            let newOrder = shuffleArray(buildSequentialOrder());
+            if (curIdx !== null) {
+                newOrder = newOrder.filter(i => i !== curIdx);
+                newOrder.unshift(curIdx);
+                musicState.posInOrder = 0;
+            }
+            musicState.order = newOrder;
+        } else {
+            musicState.order = buildSequentialOrder();
+            musicState.posInOrder = curIdx !== null ? musicState.order.indexOf(curIdx) : -1;
+        }
+        updatePlayerUI();
+    }
+
+    function cycleRepeat() {
+        musicState.repeat = musicState.repeat === 'off' ? 'all' : (musicState.repeat === 'all' ? 'one' : 'off');
+        updatePlayerUI();
+    }
+
+    function setPlayerVolume(vol) {
+        musicState.volume = Math.max(0, Math.min(100, vol));
+        localStorage.setItem('scripture_volume', String(musicState.volume));
+        sendVolumeToDisplay();
+        updateVolumeUI();
+    }
+
+    function toggleMute() {
+        if (musicState.volume > 0) {
+            musicState.volumeBeforeMute = musicState.volume;
+            setPlayerVolume(0);
+        } else {
+            setPlayerVolume(musicState.volumeBeforeMute || 80);
+        }
+    }
+
+    function seekTo(seconds) {
+        sendToRoom({ type: 'seek_music', value: seconds });
+        musicState.currentTime = seconds;
+        updateProgressUI();
+    }
+
+    function updateProgressUI() {
+        const seekEl = document.getElementById('playerSeek');
+        if (!seekEl) return;
+        seekEl.max = musicState.duration || 0;
+        if (!musicState.seeking) seekEl.value = musicState.currentTime || 0;
+        document.getElementById('playerCurrentTime').textContent = formatTime(musicState.currentTime);
+        document.getElementById('playerDuration').textContent = formatTime(musicState.duration);
+    }
+
+    function updatePlayPauseIcon() {
+        const btn = document.getElementById('playPauseBtn');
+        if (!btn) return;
+        const playing = musicState.posInOrder !== -1 && !musicState.isPaused;
+        btn.innerHTML = playing ? '&#9208;' : '&#9654;';
+        btn.title = playing ? 'Pause' : 'Play';
+    }
+
+    function updateVolumeUI() {
+        const muteBtn = document.getElementById('muteBtn');
+        const slider = document.getElementById('volumeSlider');
+        if (!muteBtn || !slider) return;
+        slider.value = musicState.volume;
+        muteBtn.innerHTML = musicState.volume === 0 ? '&#128263;' : (musicState.volume < 50 ? '&#128265;' : '&#128266;');
+    }
+
+    function updatePlayerUI() {
+        const titleEl = document.getElementById('playerTrackTitle');
+        if (titleEl) {
+            titleEl.textContent = musicState.posInOrder !== -1
+                ? SONGS[currentSongIndex()].title
+                : (SONGS.length ? 'No song selected' : 'No songs added yet');
+        }
+        const shuffleBtn = document.getElementById('shuffleBtn');
+        if (shuffleBtn) shuffleBtn.classList.toggle('active', musicState.shuffle);
+        const repeatBtn = document.getElementById('repeatBtn');
+        if (repeatBtn) {
+            repeatBtn.classList.toggle('active', musicState.repeat !== 'off');
+            repeatBtn.innerHTML = musicState.repeat === 'one' ? '&#128258;' : '&#128257;';
+            repeatBtn.title = musicState.repeat === 'off' ? 'Repeat: Off' : (musicState.repeat === 'all' ? 'Repeat: All' : 'Repeat: One');
+        }
+        updatePlayPauseIcon();
+        updateProgressUI();
+    }
 
     function renderSongList() {
         const el = document.getElementById('songList');
@@ -610,44 +913,69 @@
             el.innerHTML = '<div class="empty-note">No songs added yet — add MP3s to /audio/ and list them in SONGS.</div>';
             return;
         }
-        el.innerHTML = SONGS.map(s => {
-            const isCurrent = currentSongUrl === s.url;
-            const playing = isCurrent && !isPaused;
-            const paused = isCurrent && isPaused;
+        el.innerHTML = SONGS.map((s, i) => {
+            const isCurrent = currentSongIndex() === i;
+            const playing = isCurrent && !musicState.isPaused;
+            const eq = playing ? '<span class="eq-bars"><span></span><span></span><span></span></span>' : '';
+            const tag = isCurrent ? ` <span class="tag">${playing ? 'Now Playing' : 'Paused'}</span>` : '';
             return `
-                <div class="points-item">
-                    <span class="txt">${escapeHtml(s.title)}${playing ? ' <span class="tag">Now Playing</span>' : paused ? ' <span class="tag">Paused</span>' : ''}</span>
-                    <span>
-                        <button class="secondary small" data-play="${escapeHtml(s.url)}" data-title="${escapeHtml(s.title)}" ${playing ? 'disabled' : ''}>${paused ? 'Resume' : 'Play'}</button>
-                        <button class="secondary small" data-pause="${escapeHtml(s.url)}" ${playing ? '' : 'disabled'}>Pause</button>
-                        <button class="secondary small" data-stop="${escapeHtml(s.url)}" ${isCurrent ? '' : 'disabled'}>Stop</button>
-                    </span>
+                <div class="points-item ${isCurrent ? 'now-playing' : ''}" data-index="${i}" style="cursor:pointer;">
+                    <span class="txt">${eq}${escapeHtml(s.title)}${tag}</span>
                 </div>
             `;
         }).join('');
+        el.querySelectorAll('.points-item').forEach(item => {
+            item.addEventListener('click', () => playSongByIndex(parseInt(item.dataset.index, 10)));
+        });
     }
 
-    document.getElementById('songList').addEventListener('click', (e) => {
-        const playUrl = e.target.dataset.play;
-        const pauseUrl = e.target.dataset.pause;
-        const stopUrl = e.target.dataset.stop;
-        if (playUrl) {
-            currentSongUrl = playUrl;
-            isPaused = false;
-            sendToRoom({ type: 'play_music', url: playUrl, title: e.target.dataset.title });
-            renderSongList();
-        } else if (pauseUrl) {
-            isPaused = true;
-            sendToRoom({ type: 'pause_music' });
-            renderSongList();
-        } else if (stopUrl) {
-            currentSongUrl = null;
-            isPaused = false;
-            sendToRoom({ type: 'stop_music' });
-            renderSongList();
-        }
+    // ---- Player control wiring ----
+    document.getElementById('shuffleBtn').addEventListener('click', toggleShuffle);
+    document.getElementById('repeatBtn').addEventListener('click', cycleRepeat);
+    document.getElementById('prevBtn').addEventListener('click', playPrev);
+    document.getElementById('nextBtn').addEventListener('click', () => playNext(false));
+    document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
+    document.getElementById('stopBtn').addEventListener('click', stopMusicPlayer);
+    document.getElementById('muteBtn').addEventListener('click', toggleMute);
+    document.getElementById('volumeSlider').addEventListener('input', (e) => setPlayerVolume(parseInt(e.target.value, 10)));
+
+    const playerSeekEl = document.getElementById('playerSeek');
+    playerSeekEl.addEventListener('mousedown', () => { musicState.seeking = true; });
+    playerSeekEl.addEventListener('touchstart', () => { musicState.seeking = true; });
+    playerSeekEl.addEventListener('input', (e) => {
+        document.getElementById('playerCurrentTime').textContent = formatTime(parseFloat(e.target.value));
+    });
+    playerSeekEl.addEventListener('change', (e) => {
+        seekTo(parseFloat(e.target.value));
+        musicState.seeking = false;
     });
 
+    // ---- Live status sync from the display window ----
+    // Read-only feed on its own DB path — the display reports its actual
+    // <audio> element state here so the progress bar, play/pause icon, and
+    // auto-advance-to-next-song all stay accurate even after a refresh.
+    window.firebaseOnValue(
+        window.firebaseRef(window.firebaseDb, 'music_status/' + state.roomCode),
+        (snapshot) => {
+            const status = snapshot.val();
+            if (!status) return;
+            musicState.duration = status.duration || 0;
+            if (!musicState.seeking) musicState.currentTime = status.currentTime || 0;
+            if (musicState.posInOrder !== -1) musicState.isPaused = !!status.paused;
+            updateProgressUI();
+            updatePlayPauseIcon();
+
+            if (status.ended && musicState.posInOrder !== -1 && !musicState.endedHandled) {
+                musicState.endedHandled = true;
+                playNext(true);
+            } else if (!status.ended) {
+                musicState.endedHandled = false;
+            }
+        }
+    );
+
+    updateVolumeUI();
+    updatePlayerUI();
     renderSongList();
 
     function sendToRoom(payload) {
@@ -1133,6 +1461,9 @@
         url.searchParams.set('room', state.roomCode);
         state.displayWindow = window.open(url.toString(), 'scripture_display', 'width=1280,height=720');
         setTimeout(updateStatusPill, 800);
+        // Sync the current volume to the freshly-opened display so it doesn't
+        // default to full volume before the next play/volume-change command.
+        setTimeout(sendVolumeToDisplay, 1000);
     });
 
     // ---- History ----
