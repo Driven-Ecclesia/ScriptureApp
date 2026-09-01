@@ -39,7 +39,7 @@
     display:flex;
     flex-direction:column;
     align-items:center;
-    padding: 2.5vh 8vw 5vh;
+    padding: 2.5vh 5vw 3vh;
     text-align:center;
     position:relative;
     z-index:2;
@@ -82,7 +82,7 @@
         overflow-wrap:break-word;
         word-break:break-word;
         text-align:left;
-        max-width:1000px;
+        max-width:1250px;
         width:100%;
         margin:0 auto;
         color:#ffffff;
@@ -114,13 +114,13 @@
         line-height:1.5;
         overflow-wrap:break-word;
         word-break:break-word;
-        max-width: 1100px;
+        max-width: 1400px;
         color:#ffffff;
         transition: opacity 0.4s ease;
         /* font-size is still set dynamically in JS based on verse length */
     }
     .verse-ref{
-        margin-top:4vh;
+        margin-top:5.5vh;
         font-size:1.5vw;
         color: var(--gold-soft);
         letter-spacing:1px;
@@ -130,7 +130,7 @@
         width:120px;
         height:2px;
         background: var(--gold);
-        margin: 3.5vh auto 0 auto;
+        margin: 5vh auto 0 auto;
     }
     .placeholder{
         color:#8a92b3;
@@ -224,13 +224,13 @@
     // so long verses (e.g. Esther 8:9) shrink to fit instead of overflowing.
     function getFontSize(text) {
         const len = text.length;
-        if (len <= 90)  return 3.4;   // short verse, e.g. John 11:35
-        if (len <= 160) return 2.8;
-        if (len <= 260) return 2.3;
-        if (len <= 380) return 1.9;
-        if (len <= 550) return 1.55;  // covers verses like Esther 8:9 (~950 chars in some translations)
-        if (len <= 800) return 1.3;
-        return 1.1;                   // extremely long passages / multi-verse ranges
+        if (len <= 90)  return 3.9;   // short verse, e.g. John 11:35
+        if (len <= 160) return 3.2;
+        if (len <= 260) return 2.6;
+        if (len <= 380) return 2.2;
+        if (len <= 550) return 1.8;  // covers verses like Esther 8:9 (~950 chars in some translations)
+        if (len <= 800) return 1.5;
+        return 1.3;                   // extremely long passages / multi-verse ranges
     }
 
     // Shrinks el's font-size (in vw) step by step until its content fits inside
