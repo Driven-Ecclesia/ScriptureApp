@@ -221,6 +221,51 @@
         font-size:17px; padding:0 6px; line-height:1;
     }
     .points-item .remove-btn:hover{ color:#6e1f1f; }
+        .song-grid{
+        display:grid;
+        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+        gap:14px;
+        margin-top:10px;
+    }
+    .song-card{
+        border:1px solid var(--gold-soft);
+        border-radius:6px;
+        padding:16px 14px;
+        background:#fffdf7;
+        display:flex;
+        flex-direction:column;
+        gap:10px;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+    .song-card.playing{
+        border-color: var(--navy-2);
+        box-shadow: 0 0 0 2px var(--gold);
+        background: var(--cream-2);
+    }
+    .song-card-title{
+        font-weight:bold;
+        color: var(--navy-2);
+        font-size:14px;
+        line-height:1.4;
+    }
+    .song-card-status{
+        font-size:10.5px;
+        text-transform:uppercase;
+        letter-spacing:0.6px;
+        color:#9c8f66;
+        font-weight:bold;
+    }
+    .song-card.playing .song-card-status{ color:#2f7a3d; }
+    .song-card-actions{
+        display:flex;
+        gap:6px;
+        margin-top:auto;
+    }
+    .song-card-actions button{
+        flex:1;
+        padding:7px 4px;
+        font-size:11.5px;
+    }
 
     .settings-row{ display:flex; gap:12px; flex-wrap:wrap; }
     footer{
@@ -512,7 +557,7 @@
     <div class="card">
         <h2>Music</h2>
         <div class="hint" style="margin-bottom:12px;">Plays silently in the background on the display — nothing is shown on screen. Only one song plays at a time; pressing Play on another song stops the current one.</div>
-        <div class="points-list" id="songList" style="max-height:none;"></div>
+        <div class="song-grid" id="songList"></div>
     </div>
 
     <div class="card">
@@ -614,14 +659,17 @@
             const isCurrent = currentSongUrl === s.url;
             const playing = isCurrent && !isPaused;
             const paused = isCurrent && isPaused;
+            const statusHtml = playing ? '<div class="song-card-status">Now Playing</div>'
+                : paused ? '<div class="song-card-status">Paused</div>' : '';
             return `
-                <div class="points-item">
-                    <span class="txt">${escapeHtml(s.title)}${playing ? ' <span class="tag">Now Playing</span>' : paused ? ' <span class="tag">Paused</span>' : ''}</span>
-                    <span>
+                <div class="song-card ${isCurrent ? 'playing' : ''}">
+                    <div class="song-card-title">${escapeHtml(s.title)}</div>
+                    ${statusHtml}
+                    <div class="song-card-actions">
                         <button class="secondary small" data-play="${escapeHtml(s.url)}" data-title="${escapeHtml(s.title)}" ${playing ? 'disabled' : ''}>${paused ? 'Resume' : 'Play'}</button>
                         <button class="secondary small" data-pause="${escapeHtml(s.url)}" ${playing ? '' : 'disabled'}>Pause</button>
                         <button class="secondary small" data-stop="${escapeHtml(s.url)}" ${isCurrent ? '' : 'disabled'}>Stop</button>
-                    </span>
+                    </div>
                 </div>
             `;
         }).join('');
