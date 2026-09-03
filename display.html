@@ -308,6 +308,8 @@
             pauseMusic();
         } else if (msg.type === 'stop_music') {
             stopMusic();
+        } else if (msg.type === 'set_volume') {
+            setVolume(msg.value);
         } else if (msg.type === 'community_name') {
             communityNameEl.textContent = msg.name;
         } else if (msg.type === 'background') {
@@ -370,6 +372,9 @@
         bgAudio.pause();
         bgAudio.currentTime = 0;
         bgAudio.removeAttribute('src');
+    }
+    function setVolume(value) {
+    bgAudio.volume = Math.min(1, Math.max(0, value));
     }
 
 
