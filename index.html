@@ -557,6 +557,10 @@
     <div class="card">
         <h2>Music</h2>
         <div class="hint" style="margin-bottom:12px;">Plays silently in the background on the display — nothing is shown on screen. Only one song plays at a time; pressing Play on another song stops the current one.</div>
+        <div class="field" style="margin-bottom:12px;">
+           <label>Volume</label>
+           <input type="range" id="volumeSlider" min="0" max="100" value="100" style="width:100%;">
+        </div>
         <div class="song-grid" id="songList"></div>
     </div>
 
@@ -695,6 +699,10 @@
             sendToRoom({ type: 'stop_music' });
             renderSongList();
         }
+    });
+    document.getElementById('volumeSlider').addEventListener('input', (e) => {
+         const value = e.target.value / 100; // convert 0–100 slider to 0–1
+         sendToRoom({ type: 'set_volume', value });
     });
 
     renderSongList();
