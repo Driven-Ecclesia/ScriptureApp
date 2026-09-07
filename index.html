@@ -971,7 +971,7 @@
 
         verseLoadHint.textContent = 'Loading verse numbers…';
         try {
-            const url = `https://bible-api.com/${encodeURIComponent(bookName + ' ' + chapter)}?translation=kjv`;
+            const url = `https://bible-api.com/${encodeURIComponent(bookName + ' ' + chapter)}?translation=kjv&single_chapter_book_matching=indifferent`;
             const res = await fetch(url);
             const data = await res.json();
             const count = (data.verses && data.verses.length) || 0;
@@ -1100,27 +1100,43 @@
                 const parsed = parseReference(refText);
                 if (!parsed) throw new Error('Please choose a book and chapter above, or type a reference like "John 3:16".');
                 const bookNum = bookData.indexOf(parsed.book) + 1;
-                const vStart = parsed.verseStart || 1;
-                const vEnd = parsed.verseEnd || vStart;
-                if (vEnd - vStart > 40) throw new Error('That range is too long — try a shorter passage.');
+                let verses = [];
 
-                const verses = [];
-                for (let v = vStart; v <= vEnd; v++) {
-                    const url = `https://bolls.life/get-verse/${state.translation}/${bookNum}/${parsed.chapter}/${v}/`;
+                if (!parsed.verseStart) {
+                    // No verse given — fetch the whole chapter in one call instead of
+                    // silently defaulting to just verse 1.
+                    const url = `https://bolls.life/get-text/${state.translation}/${bookNum}/${parsed.chapter}/`;
                     const res = await fetch(url);
-                    if (!res.ok) throw new Error(`Could not fetch that verse (status ${res.status}).`);
-                    const v_data = await res.json();
-                    if (!v_data || !v_data.text) throw new Error('That verse came back empty for this translation.');
-                    verses.push({
-                        reference: `${parsed.book.name} ${parsed.chapter}:${v}`,
-                        text: v_data.text.replace(/<[^>]+>/g, '').trim(),
+                    if (!res.ok) throw new Error(`Could not fetch that chapter (status ${res.status}).`);
+                    const data = await res.json();
+                    if (!Array.isArray(data) || !data.length) throw new Error('That chapter came back empty for this translation.');
+                    verses = data.map(v => ({
+                        reference: `${parsed.book.name} ${parsed.chapter}:${v.verse}`,
+                        text: v.text.replace(/<[^>]+>/g, '').trim(),
                         translation: state.translation,
                         translationName: state.translationLabel
-                    });
+                    }));
+                } else {
+                    const vStart = parsed.verseStart;
+                    const vEnd = parsed.verseEnd || vStart;
+                    if (vEnd - vStart > 40) throw new Error('That range is too long — try a shorter passage.');
+                    for (let v = vStart; v <= vEnd; v++) {
+                        const url = `https://bolls.life/get-verse/${state.translation}/${bookNum}/${parsed.chapter}/${v}/`;
+                        const res = await fetch(url);
+                        if (!res.ok) throw new Error(`Could not fetch that verse (status ${res.status}).`);
+                        const v_data = await res.json();
+                        if (!v_data || !v_data.text) throw new Error('That verse came back empty for this translation.');
+                        verses.push({
+                            reference: `${parsed.book.name} ${parsed.chapter}:${v}`,
+                            text: v_data.text.replace(/<[^>]+>/g, '').trim(),
+                            translation: state.translation,
+                            translationName: state.translationLabel
+                        });
+                    }
                 }
                 state.verseList = verses;
             } else {
-                const url = `https://bible-api.com/${encodeURIComponent(refText)}?translation=${state.translation}`;
+                const url = `https://bible-api.com/${encodeURIComponent(refText)}?translation=${state.translation}&single_chapter_book_matching=indifferent`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Reference not found. Try a format like "John 3:16" or "Psalm 23".');
                 const data = await res.json();
