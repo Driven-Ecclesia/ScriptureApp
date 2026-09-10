@@ -70,6 +70,21 @@
         display:block;
     }
 
+    #videoLayer{
+        position:fixed; inset:0;
+        background:#000;
+        z-index:21;
+        display:none;
+        align-items:center;
+        justify-content:center;
+    }
+    #videoLayer video{
+        width:100%;
+        height:100%;
+        object-fit:contain;
+        display:block;
+    }
+
     .points-title{
         font-size:2.2vw;
         color: var(--gold);
@@ -182,6 +197,9 @@
 <div id="slideLayer">
     <img id="slideImg" src="" alt="">
 </div>
+<div id="videoLayer">
+    <video id="videoPlayer" loop muted playsinline></video>
+</div>
 <audio id="bgAudio" loop style="display:none;"></audio>
 
 <div id="soundGate" style="position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:50; display:none; align-items:center; justify-content:center; color:#e3d6ae; font-family:'Georgia','Times New Roman',serif; font-size:1.8vw; letter-spacing:1px; cursor:pointer;">
@@ -256,8 +274,35 @@
         document.getElementById('slideLayer').style.display = 'none';
     }
 
+    // Muted until the sound gate is unlocked (browsers block unmuted autoplay
+    // without a prior click) — reuses the exact same unlock flag and overlay
+    // as the Music feature, so one tap unlocks sound for both. Also pauses
+    // any playing background music, since video-with-sound and music playing
+    // at the same time would clash badly.
+    function showVideo(url) {
+        bgAudio.pause();
+
+        const videoPlayer = document.getElementById('videoPlayer');
+        videoPlayer.src = url;
+        videoPlayer.currentTime = 0;
+        videoPlayer.muted = !audioUnlocked;
+        videoPlayer.play().catch(() => {});
+        document.getElementById('videoLayer').style.display = 'flex';
+
+        if (!audioUnlocked) {
+            soundGate.style.display = 'flex';
+        }
+    }
+
+    function hideVideo() {
+        const videoPlayer = document.getElementById('videoPlayer');
+        videoPlayer.pause();
+        document.getElementById('videoLayer').style.display = 'none';
+    }
+
     function handleMessage(msg) {
         if (msg.type !== 'show_slide') hideSlide();
+        if (msg.type !== 'show_video') hideVideo();
 
         if (msg.type === 'show_verse') {
             const v = msg.verse;
@@ -295,6 +340,8 @@
             }, 200);
         } else if (msg.type === 'show_slide') {
             showSlide(msg.value);
+        } else if (msg.type === 'show_video') {
+            showVideo(msg.value);
         } else if (msg.type === 'clear') {
             content.innerHTML = `
                 <div class="placeholder">
@@ -350,9 +397,20 @@
         audioUnlocked = true;
         soundGate.style.display = 'none';
         bgAudio.play().catch(() => {});
+
+        const videoPlayer = document.getElementById('videoPlayer');
+        if (document.getElementById('videoLayer').style.display === 'flex') {
+            videoPlayer.muted = false;
+            videoPlayer.play().catch(() => {});
+        }
     });
 
     function playMusic(url) {
+        // Symmetric to showVideo() pausing music: starting a song mutes any
+        // video currently playing its own sound (the visual loop keeps
+        // running — only the clashing audio track is silenced).
+        document.getElementById('videoPlayer').muted = true;
+
         const sameSongPaused = bgAudio.src.endsWith(url) && bgAudio.paused && bgAudio.currentTime > 0;
         if (!sameSongPaused) {
             bgAudio.src = url;
