@@ -569,42 +569,6 @@ footer{
     background: var(--toolbar);
 }
 </style>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBowRtZf_IoFiiIPzMNNlkTxKQ2krCRJBM",
-    authDomain: "driven-scripture.firebaseapp.com",
-    databaseURL: "https://driven-scripture-default-rtdb.firebaseio.com",
-    projectId: "driven-scripture",
-    storageBucket: "driven-scripture.firebasestorage.app",
-    messagingSenderId: "129202807693",
-    appId: "1:129202807693:web:4eb080f18962aa6a9cd3c4"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  window.firebaseDb = db;
-  window.firebaseRef = ref;
-  window.firebaseSet = set;
-  window.firebaseOnValue = onValue;
-
-  // Live truth mirror: the control panel also *listens* to the same room it
-  // writes to, so the "Live Now" panel always reflects the real, current
-  // state of the display — even if a second control panel on the same room
-  // changed it, not just whatever this panel last clicked.
-  let currentLiveRoomUnsub = null;
-  function subscribeLiveRoom(roomCode) {
-      if (currentLiveRoomUnsub) currentLiveRoomUnsub();
-      const roomRef = ref(db, 'rooms/' + roomCode);
-      currentLiveRoomUnsub = onValue(roomRef, (snapshot) => {
-          const msg = snapshot.val();
-          window.dispatchEvent(new CustomEvent('live-room-update', { detail: msg }));
-      });
-  }
-  window.subscribeLiveRoom = subscribeLiveRoom;
-</script>
 </head>
 <body>
 
@@ -897,7 +861,41 @@ footer{
 
 <footer>Scripture Display &middot; Built for community worship &amp; study</footer>
 
-<script defer>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBowRtZf_IoFiiIPzMNNlkTxKQ2krCRJBM",
+      authDomain: "driven-scripture.firebaseapp.com",
+      databaseURL: "https://driven-scripture-default-rtdb.firebaseio.com",
+      projectId: "driven-scripture",
+      storageBucket: "driven-scripture.firebasestorage.app",
+      messagingSenderId: "129202807693",
+      appId: "1:129202807693:web:4eb080f18962aa6a9cd3c4"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    window.firebaseDb = db;
+    window.firebaseRef = ref;
+    window.firebaseSet = set;
+    window.firebaseOnValue = onValue;
+
+    // Live truth mirror: the control panel also *listens* to the same room it
+    // writes to, so the "Live Now" panel always reflects the real, current
+    // state of the display — even if a second control panel on the same room
+    // changed it, not just whatever this panel last clicked.
+    let currentLiveRoomUnsub = null;
+    function subscribeLiveRoom(roomCode) {
+        if (currentLiveRoomUnsub) currentLiveRoomUnsub();
+        const roomRef = ref(db, 'rooms/' + roomCode);
+        currentLiveRoomUnsub = onValue(roomRef, (snapshot) => {
+            const msg = snapshot.val();
+            window.dispatchEvent(new CustomEvent('live-room-update', { detail: msg }));
+        });
+    }
+    window.subscribeLiveRoom = subscribeLiveRoom;
 
     // Add one line per MP3 you drop into the /audio/ folder in the repo.
     const SONGS = [
@@ -1217,7 +1215,6 @@ footer{
 
     // ---- Looping Videos (short clips that play full-screen and loop) ----
     const VIDEO_PRESETS = [
-        { label: 'Min Feyishayo Intro', file: 'videos/min-Feyishayo-intro.mp4' }
         // Add your video clips here, e.g.:
         // { label: 'Welcome Loop', file: 'videos/welcome-loop.mp4' },
         // { label: 'Countdown', file: 'videos/countdown.mp4' },
