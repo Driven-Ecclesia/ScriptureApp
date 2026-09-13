@@ -541,6 +541,54 @@ button:disabled{ opacity:0.35; cursor:not-allowed; }
     background-position:center;
 }
 
+/* Program-monitor-only layers: real background, dark overlay, and logo/name,
+   mirroring the actual display.html structure. The Preview monitor doesn't
+   use any of these — it keeps its original plain, padding-centered layout. */
+#liveMirror{ padding:0; background:#0b1730; }
+#liveMirror .ms-bg{
+    position:absolute; inset:0;
+    background: linear-gradient(180deg, #0b1730 0%, #16234a 55%, #0b1730 100%);
+    background-size:cover;
+    background-position:center;
+    z-index:0;
+}
+#liveMirror .ms-overlay{
+    position:absolute; inset:0;
+    background: rgba(0,0,0,0);
+    z-index:1;
+}
+#liveMirror .ms-brand{
+    position:absolute;
+    top:6%; left:0; right:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    z-index:2;
+}
+#liveMirror .ms-brand img{
+    height:16px;
+    width:auto;
+    display:block;
+}
+#liveMirror .ms-community-name{
+    font-size:6px;
+    letter-spacing:1.4px;
+    text-transform:uppercase;
+    color:#c9a24a;
+    text-align:center;
+}
+#liveMirror .ms-body{
+    position:absolute; inset:0;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:9%;
+    z-index:2;
+}
+
 .monitor-meta{ font-size:10px; color: var(--text-faint); line-height:1.6; min-height:14px; }
 .monitor-meta strong{ color: var(--text-dim); }
 
@@ -844,7 +892,15 @@ footer{
                 <span class="rec-badge"><span class="dot"></span>LIVE</span>
             </div>
             <div class="monitor-screen" id="liveMirror">
-                <div class="ms-empty">Waiting for the display to report in&hellip;</div>
+                <div class="ms-bg" id="liveBg"></div>
+                <div class="ms-overlay" id="liveOverlay"></div>
+                <div class="ms-brand" id="liveBrand">
+                    <img id="liveLogoImg" src="" alt="">
+                    <div class="ms-community-name" id="liveCommunityName">Driven Ecclesia</div>
+                </div>
+                <div class="ms-body" id="liveMsBody">
+                    <div class="ms-empty">Waiting for the display to report in&hellip;</div>
+                </div>
             </div>
             <div class="monitor-meta" id="liveMeta"></div>
         </div>
@@ -1266,11 +1322,15 @@ footer{
     if (savedName) {
         communityNameInput.value = savedName;
         communityNameHeader.textContent = savedName + ' Scripture Display';
+        setLiveMonitorCommunityName(savedName);
+    } else {
+        setLiveMonitorCommunityName(communityNameInput.value.trim() || 'Driven Ecclesia');
     }
         document.getElementById('saveNameBtn').addEventListener('click', () => {
         const name = communityNameInput.value.trim() || 'CEC';
         localStorage.setItem('scripture_community_name', name);
         communityNameHeader.textContent = name + ' Scripture Display';
+        setLiveMonitorCommunityName(name);
         sendToRoom({ type: 'community_name', name });
     });
 
@@ -1647,16 +1707,44 @@ footer{
     // ==================================================================
     // PROGRAM monitor — mirrors the *actual* live state of the display,
     // read directly from Firebase rather than assumed from local clicks,
-    // styled as a faithful miniature replica of the real display output.
+    // styled as a faithful miniature replica of the real display output:
+    // real background, real overlay, real logo, real community name.
+    // Preview monitor is untouched and keeps its original simple layout.
     // ==================================================================
-    const liveMirror = document.getElementById('liveMirror');
+    const liveMsBody = document.getElementById('liveMsBody');
     const liveMeta = document.getElementById('liveMeta');
     const liveMonitorLabel = document.getElementById('liveMonitorLabel');
     const roomBadgeText = document.getElementById('roomBadgeText');
 
+    // Reuse the logo already embedded in the topbar rather than pasting the
+    // giant base64 string a second time.
+    document.getElementById('liveLogoImg').src = document.querySelector('.topbar .brand-mark img').src;
+
+    function applyMonitorBackground(bg) {
+        const bgEl = document.getElementById('liveBg');
+        const overlayEl = document.getElementById('liveOverlay');
+        const brandEl = document.getElementById('liveBrand');
+        if (!bg || bg.mode === 'default' || !bg.mode) {
+            bgEl.style.background = 'linear-gradient(180deg, #0b1730 0%, #16234a 55%, #0b1730 100%)';
+            overlayEl.style.background = 'rgba(0,0,0,0)';
+        } else if (bg.mode === 'color') {
+            bgEl.style.background = bg.value;
+            overlayEl.style.background = 'rgba(0,0,0,0.15)';
+        } else if (bg.mode === 'image') {
+            bgEl.style.background = `url('${bg.value}') center / cover no-repeat`;
+            overlayEl.style.background = 'rgba(0,0,0,0.45)';
+        }
+        brandEl.style.display = (bg && bg.hideBrand) ? 'none' : 'flex';
+    }
+    applyMonitorBackground({ mode: 'default' });
+
+    function setLiveMonitorCommunityName(name) {
+        document.getElementById('liveCommunityName').textContent = name;
+    }
+
     function renderLiveNow(msg) {
         if (!msg || !msg.type) {
-            liveMirror.innerHTML = '<div class="ms-empty">Waiting for the display to report in&hellip;</div>';
+            liveMsBody.innerHTML = '<div class="ms-empty">Waiting for the display to report in&hellip;</div>';
             liveMeta.innerHTML = '';
             liveMonitorLabel.classList.add('idle');
             return;
@@ -1664,37 +1752,37 @@ footer{
         liveMonitorLabel.classList.remove('idle');
 
         if (msg.type === 'show_verse' && msg.verse) {
-            liveMirror.innerHTML = `
+            liveMsBody.innerHTML = `
                 <div class="ms-content">${escapeHtml(msg.verse.text)}</div>
                 <div class="ms-rule"></div>
                 <div class="ms-sub">${escapeHtml(msg.verse.reference)}</div>
             `;
             liveMeta.innerHTML = '<strong>Scripture</strong> &middot; ' + escapeHtml(msg.verse.translationName || '');
         } else if (msg.type === 'show_points') {
-            liveMirror.innerHTML = `
+            liveMsBody.innerHTML = `
                 ${msg.title ? `<div class="ms-sub" style="margin-bottom:4%;">${escapeHtml(msg.title)}</div>` : ''}
                 <div class="ms-content">${escapeHtml(msg.text || '')}</div>
             `;
             liveMeta.innerHTML = '<strong>Notes</strong>';
         } else if (msg.type === 'show_slide') {
-            liveMirror.innerHTML = `<div class="ms-thumb" style="background-image:url('${msg.value}');"></div>`;
+            liveMsBody.innerHTML = `<div class="ms-thumb" style="background-image:url('${msg.value}');"></div>`;
             liveMeta.innerHTML = '<strong>Full Slide</strong> &middot; ' + escapeHtml(msg.value);
         } else if (msg.type === 'show_video') {
-            liveMirror.innerHTML = '<div class="ms-empty">&#9654; Looping video playing</div>';
+            liveMsBody.innerHTML = '<div class="ms-empty">&#9654; Looping video playing</div>';
             liveMeta.innerHTML = '<strong>Video</strong> &middot; ' + escapeHtml(msg.value);
         } else if (msg.type === 'clear') {
-            liveMirror.innerHTML = '<div class="ms-empty">Cleared &mdash; showing placeholder</div>';
+            liveMsBody.innerHTML = '<div class="ms-empty">Cleared &mdash; showing placeholder</div>';
             liveMeta.innerHTML = '';
         } else if (msg.type === 'background') {
-            liveMirror.innerHTML = '<div class="ms-empty">Background updated</div>';
+            applyMonitorBackground(msg);
             liveMeta.innerHTML = '<strong>Background</strong> &middot; ' + (msg.mode === 'default' ? 'Default' : (msg.mode === 'color' ? 'Solid color' : 'Image'));
         } else if (msg.type === 'play_music' || msg.type === 'pause_music' || msg.type === 'stop_music' || msg.type === 'set_volume') {
             const label = msg.type === 'play_music' ? ('Playing: ' + (msg.title || '')) :
                           msg.type === 'pause_music' ? 'Paused' :
                           msg.type === 'stop_music' ? 'Stopped' : 'Volume changed';
-            liveMirror.innerHTML = '<div class="ms-empty">&#9835; ' + escapeHtml(label) + '</div>';
-            liveMeta.innerHTML = '<strong>Music</strong>';
+            liveMeta.innerHTML = '<strong>Music</strong> &middot; ' + escapeHtml(label);
         } else if (msg.type === 'community_name') {
+            setLiveMonitorCommunityName(msg.name || '');
             liveMeta.innerHTML = '<strong>Name updated:</strong> ' + escapeHtml(msg.name || '');
         }
 
