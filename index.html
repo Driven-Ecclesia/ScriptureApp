@@ -627,14 +627,16 @@ footer{
     align-items:center;
     justify-content:center;
     padding:24px;
-    background:
-        radial-gradient(circle at 20% 20%, rgba(74,158,255,0.10), transparent 45%),
-        radial-gradient(circle at 82% 78%, rgba(74,158,255,0.08), transparent 50%),
-        linear-gradient(160deg, #17171a 0%, #1c1c1e 45%, #131315 100%);
-    background-repeat:no-repeat;
-    background-size:cover;
+    background: rgba(15,15,17,0.45);
+    backdrop-filter: blur(10px) saturate(0.8) brightness(0.75);
+    -webkit-backdrop-filter: blur(10px) saturate(0.8) brightness(0.75);
 }
 #loginScreen.hidden{ display:none; }
+
+#appRoot.locked{
+    pointer-events:none;
+    user-select:none;
+}
 .login-card{
     width:100%;
     max-width:380px;
@@ -783,7 +785,7 @@ footer{
     </div>
 </div>
 
-<div id="appRoot" style="display:none;">
+<div id="appRoot">
 
 <div class="topbar">
     <div class="brand">
@@ -1135,15 +1137,16 @@ footer{
     const logoutBtn = document.getElementById('logoutBtn');
 
     onAuthStateChanged(auth, (user) => {
-        if (user) {
-            loginScreen.classList.add('hidden');
-            appRoot.style.display = '';
-        } else {
-            appRoot.style.display = 'none';
-            loginScreen.classList.remove('hidden');
-        }
+       if (user) {
+           loginScreen.classList.add('hidden');
+           appRoot.classList.remove('locked');
+           appRoot.removeAttribute('inert');
+       } else {
+           appRoot.classList.add('locked');
+           appRoot.setAttribute('inert', '');
+           loginScreen.classList.remove('hidden');
+       }
     });
-
     function setLoginMsg(text, type) {
         loginMsg.textContent = text || '';
         loginMsg.className = 'login-msg' + (type ? ' ' + type : '');
