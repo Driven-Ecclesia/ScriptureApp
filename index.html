@@ -884,18 +884,11 @@ footer{
                 <button data-t="CEV" data-src="apibible">CEV</button>
                 <button data-t="MSG" data-src="apibible">MSG</button>
             </div>
-            <div class="hint">KJV and WEB are public domain (no key). NKJV, NIV, AMP, CEV and MSG come from API.Bible; NLT comes from the NLT API. Both need a free key you paste in once (see Translation keys below).</div>
+            <div class="hint">KJV and WEB are public domain (no key). NKJV, NIV, AMP, CEV and MSG come from API.Bible; NLT comes from the NLT API. Both need a free key that is set once in the code (see PASTE YOUR KEYS HERE).</div>
             <details style="margin-top:10px;">
-                <summary style="cursor:pointer; font-size:12.5px; color:var(--text-dim);">Translation keys (set up once)</summary>
+                <summary style="cursor:pointer; font-size:12.5px; color:var(--text-dim);">Check translations</summary>
                 <div style="margin-top:8px;">
-                    <label>API.Bible key</label>
-                    <input type="text" id="abKeyInput" placeholder="Paste API.Bible key" autocomplete="off" style="width:100%; margin-bottom:8px;">
-                    <label>NLT key (leave blank to use TEST)</label>
-                    <input type="text" id="nltKeyInput" placeholder="TEST" autocomplete="off" style="width:100%; margin-bottom:8px;">
-                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                        <button id="saveKeysBtn" type="button">Save keys</button>
-                        <button id="testTransBtn" type="button">Test all translations</button>
-                    </div>
+                    <button id="testTransBtn" type="button">Test all translations</button>
                     <div id="testResults" style="margin-top:8px; font-size:12.5px; line-height:1.7;"></div>
                 </div>
             </details>
@@ -1050,7 +1043,7 @@ footer{
             2. In Google Meet, click <strong>Present now &rarr; A window</strong>, and select that Display window specifically (not your whole screen).<br>
             3. Come back to this control panel — search, preview, and click <strong>"Send to Display"</strong>. Your congregation only ever sees the clean display window updating; they never see this control panel.<br>
             4. If you look up a range of verses (e.g. Romans 8:1-4), only one verse shows on the display at a time — use the <strong>Prev / Next</strong> buttons in the preview to step through the passage and send each verse when you're ready for it.<br>
-            5. Want NKJV, NIV, NLT, Amplified, CEV, or MSG? Tap that translation button. These need the free API keys pasted once into the "Translation keys" box under the translation buttons.
+            5. Want NKJV, NIV, NLT, Amplified, CEV, or MSG? Tap that translation button. These need the free API keys set once in the code, in the PASTE YOUR KEYS HERE block.
         </div>
     </div>
         </section>
@@ -1323,10 +1316,8 @@ footer{
     const APIBIBLE_KEY = "";   // API.Bible key  (NKJV, NIV, AMP, CEV, MSG)
     const NLT_KEY      = "";   // NLT key from api.nlt.to (leave "" to use the limited TEST key)
     // =====================================================================
-    // If a key is left empty above, the app falls back to the key saved in the
-    // "Translation keys" box on that device.
-    function getApiBibleKey() { return (APIBIBLE_KEY || localStorage.getItem('apibible_key') || '').trim(); }
-    function getNltKey() { return (NLT_KEY || localStorage.getItem('nlt_key') || '').trim() || 'TEST'; }
+    function getApiBibleKey() { return (APIBIBLE_KEY || '').trim(); }
+    function getNltKey() { return (NLT_KEY || '').trim() || 'TEST'; }
     // Bible IDs are found automatically from your API.Bible account. You can also hard-code one here.
     const TRANSLATIONS = {
         NKJV: { source: 'apibible', bibleId: "", label: 'New King James Version' },
@@ -1340,7 +1331,7 @@ footer{
     async function discoverBibleId(t) {
         if (!apiBibleList) {
             const res = await fetch('https://api.scripture.api.bible/v1/bibles?language=eng', { headers: { 'api-key': getApiBibleKey() } });
-            if (res.status === 401 || res.status === 403) throw new Error('API.Bible refused your key (' + res.status + '). Re-check the key in the Translation keys box.');
+            if (res.status === 401 || res.status === 403) throw new Error('API.Bible refused your key (' + res.status + '). Re-check APIBIBLE_KEY in the code.');
             if (!res.ok) throw new Error('API.Bible error ' + res.status + ' while looking up ' + t + '.');
             apiBibleList = (await res.json()).data || [];
         }
@@ -1400,7 +1391,7 @@ footer{
     async function fetchApiBibleVerses(parsed, t) {
         const cfg = TRANSLATIONS[t];
         if (!getApiBibleKey()) {
-            throw new Error('API.Bible key is missing. Open "Translation keys" under the translation buttons and paste it.');
+            throw new Error('API.Bible key is missing. Paste it into APIBIBLE_KEY in the code (search for PASTE YOUR KEYS HERE).');
         }
         if (!cfg.bibleId) await discoverBibleId(t);
         const usfm = USFM[bookData.indexOf(parsed.book)];
@@ -1431,7 +1422,7 @@ footer{
             if (parsed.verseEnd && parsed.verseEnd > parsed.verseStart) ref += '-' + parsed.verseEnd;
         }
         const res = await fetch(`https://api.nlt.to/api/passages?ref=${encodeURIComponent(ref)}&version=NLT&key=${encodeURIComponent(getNltKey())}`);
-        if (res.status === 401 || res.status === 403) throw new Error('NLT: key refused (' + res.status + '). Check the NLT key in the Translation keys box.');
+        if (res.status === 401 || res.status === 403) throw new Error('NLT: key refused (' + res.status + '). Check NLT_KEY in the code.');
         if (!res.ok) throw new Error('NLT: error ' + res.status + '.');
         const html = await res.text();
         return htmlToVerses(html, parsed, 'NLT', 'Holy Bible, New Living Translation, copyright Tyndale House Foundation.');
@@ -1454,16 +1445,6 @@ footer{
         }
     }
     window.addEventListener('load', () => {
-        const ab = document.getElementById('abKeyInput'), nl = document.getElementById('nltKeyInput');
-        ab.value = localStorage.getItem('apibible_key') || '';
-        nl.value = localStorage.getItem('nlt_key') || '';
-        document.getElementById('saveKeysBtn').addEventListener('click', () => {
-            localStorage.setItem('apibible_key', ab.value.trim());
-            localStorage.setItem('nlt_key', nl.value.trim());
-            apiBibleList = null;
-            Object.keys(TRANSLATIONS).forEach(k => { if (TRANSLATIONS[k].source === 'apibible') TRANSLATIONS[k].bibleId = ''; });
-            document.getElementById('testResults').textContent = 'Saved on this device.';
-        });
         document.getElementById('testTransBtn').addEventListener('click', runTranslationTest);
     });
 
