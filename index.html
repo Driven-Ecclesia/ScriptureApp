@@ -881,8 +881,7 @@ footer{
                 <button data-t="NIV" data-src="apibible">NIV</button>
                 <button data-t="NLT" data-src="nlt">NLT</button>
                 <button data-t="AMP" data-src="apibible">AMP</button>
-                <button data-t="CEV" data-src="apibible">CEV</button>
-                <button data-t="MSG" data-src="apibible">MSG</button>
+                
             </div>
             <div class="hint">KJV and WEB are public domain (no key). NKJV, NIV, AMP, CEV and MSG come from API.Bible; NLT comes from the NLT API. Both need a free key that is set once in the code (see PASTE YOUR KEYS HERE).</div>
             <details style="margin-top:10px;">
@@ -1314,7 +1313,7 @@ footer{
     //  >>> PASTE YOUR KEYS HERE (between the quotes) <<<
     // =====================================================================
     const APIBIBLE_KEY = "Z3uRgnDbpuMOa5Eel0rfE";   // API.Bible key  (NKJV, NIV, AMP, CEV, MSG)
-    const NLT_KEY      = "";   // NLT key from api.nlt.to (leave "" to use the limited TEST key)
+    const NLT_KEY      = "d2e8668d-2de7-4fc9-8b7b-1856e5db8384";   // NLT key from api.nlt.to (leave "" to use the limited TEST key)
     // =====================================================================
     function getApiBibleKey() { return (APIBIBLE_KEY || '').trim(); }
     function getNltKey() { return (NLT_KEY || '').trim() || 'TEST'; }
@@ -1323,8 +1322,6 @@ footer{
         NKJV: { source: 'apibible', bibleId: "", label: 'New King James Version' },
         NIV:  { source: 'apibible', bibleId: "", label: 'New International Version' },
         AMP:  { source: 'apibible', bibleId: "", label: 'Amplified Bible' },
-        CEV:  { source: 'apibible', bibleId: "", label: 'Contemporary English Version' },
-        MSG:  { source: 'apibible', bibleId: "", label: 'The Message' },
         NLT:  { source: 'nlt', label: 'New Living Translation' }
     };
     let apiBibleList = null;
