@@ -1317,9 +1317,16 @@ footer{
     //  TRANSLATION SETTINGS  -  EDIT THIS BLOCK (Bolls no longer serves
     //  copyrighted translations, so these now use official APIs)
     // =====================================================================
-    // Keys are typed into the "Translation keys" box in the app (saved on this device).
-    function getApiBibleKey() { return (localStorage.getItem('apibible_key') || '').trim(); }
-    function getNltKey() { return (localStorage.getItem('nlt_key') || '').trim() || 'TEST'; }
+    // =====================================================================
+    //  >>> PASTE YOUR KEYS HERE (between the quotes) <<<
+    // =====================================================================
+    const APIBIBLE_KEY = "";   // API.Bible key  (NKJV, NIV, AMP, CEV, MSG)
+    const NLT_KEY      = "";   // NLT key from api.nlt.to (leave "" to use the limited TEST key)
+    // =====================================================================
+    // If a key is left empty above, the app falls back to the key saved in the
+    // "Translation keys" box on that device.
+    function getApiBibleKey() { return (APIBIBLE_KEY || localStorage.getItem('apibible_key') || '').trim(); }
+    function getNltKey() { return (NLT_KEY || localStorage.getItem('nlt_key') || '').trim() || 'TEST'; }
     // Bible IDs are found automatically from your API.Bible account. You can also hard-code one here.
     const TRANSLATIONS = {
         NKJV: { source: 'apibible', bibleId: "", label: 'New King James Version' },
