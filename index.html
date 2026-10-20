@@ -876,14 +876,29 @@ footer{
             <label>Translation</label>
             <div class="translation-toggle" id="translationToggle">
                 <button data-t="kjv" data-src="bible-api" class="active">KJV</button>
-                <button data-t="NKJV" data-src="bolls">NKJV</button>
-                <button data-t="NIV" data-src="bolls">NIV</button>
-                <button data-t="NLT" data-src="bolls">NLT</button>
-                <button data-t="AMP" data-src="bolls">AMP</button>
-                <button data-t="CEVD" data-src="bolls">CEV</button>
-                <button data-t="MSG" data-src="bolls">MSG</button>
+                <button data-t="web" data-src="bible-api">WEB</button>
+                <button data-t="NKJV" data-src="apibible">NKJV</button>
+                <button data-t="NIV" data-src="apibible">NIV</button>
+                <button data-t="NLT" data-src="nlt">NLT</button>
+                <button data-t="AMP" data-src="apibible">AMP</button>
+                <button data-t="CEV" data-src="apibible">CEV</button>
+                <button data-t="MSG" data-src="apibible">MSG</button>
             </div>
-            <div class="hint">KJV is public domain. The others are fetched free via the Bolls Bible API — no key needed.</div>
+            <div class="hint">KJV and WEB are public domain (no key). NKJV, NIV, AMP, CEV and MSG come from API.Bible; NLT comes from the NLT API. Both need a free key you paste in once (see Translation keys below).</div>
+            <details style="margin-top:10px;">
+                <summary style="cursor:pointer; font-size:12.5px; color:var(--text-dim);">Translation keys (set up once)</summary>
+                <div style="margin-top:8px;">
+                    <label>API.Bible key</label>
+                    <input type="text" id="abKeyInput" placeholder="Paste API.Bible key" autocomplete="off" style="width:100%; margin-bottom:8px;">
+                    <label>NLT key (leave blank to use TEST)</label>
+                    <input type="text" id="nltKeyInput" placeholder="TEST" autocomplete="off" style="width:100%; margin-bottom:8px;">
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button id="saveKeysBtn" type="button">Save keys</button>
+                        <button id="testTransBtn" type="button">Test all translations</button>
+                    </div>
+                    <div id="testResults" style="margin-top:8px; font-size:12.5px; line-height:1.7;"></div>
+                </div>
+            </details>
         </div>
 
         <div class="preview" id="previewBox">
@@ -1035,7 +1050,7 @@ footer{
             2. In Google Meet, click <strong>Present now &rarr; A window</strong>, and select that Display window specifically (not your whole screen).<br>
             3. Come back to this control panel — search, preview, and click <strong>"Send to Display"</strong>. Your congregation only ever sees the clean display window updating; they never see this control panel.<br>
             4. If you look up a range of verses (e.g. Romans 8:1-4), only one verse shows on the display at a time — use the <strong>Prev / Next</strong> buttons in the preview to step through the passage and send each verse when you're ready for it.<br>
-            5. Want NKJV, NIV, NLT, Amplified, CEV, or MSG? Just tap that translation button — no key or signup needed.
+            5. Want NKJV, NIV, NLT, Amplified, CEV, or MSG? Tap that translation button. These need the free API keys pasted once into the "Translation keys" box under the translation buttons.
         </div>
     </div>
         </section>
@@ -1285,7 +1300,7 @@ footer{
 
         const state = {
         translation: 'kjv',
-        translationSource: 'bible-api', // 'bible-api' | 'bolls'
+        translationSource: 'bible-api', // 'bible-api' | 'apibible' | 'nlt'
         translationLabel: '',
         currentVerse: null,
         verseList: [],
@@ -1296,15 +1311,155 @@ footer{
         points: []
     };
 
-    const translationNames = { kjv: 'King James Version' };
-    const BOLLS_TRANSLATIONS = {
-        NKJV: 'New King James Version',
-        NIV: 'New International Version',
-        NLT: 'New Living Translation',
-        AMP: 'Amplified Bible',
-        CEVD: 'Contemporary English Version',
-        MSG: 'The Message'
+    const translationNames = { kjv: 'King James Version', web: 'World English Bible' };
+
+    // =====================================================================
+    //  TRANSLATION SETTINGS  -  EDIT THIS BLOCK (Bolls no longer serves
+    //  copyrighted translations, so these now use official APIs)
+    // =====================================================================
+    // Keys are typed into the "Translation keys" box in the app (saved on this device).
+    function getApiBibleKey() { return (localStorage.getItem('apibible_key') || '').trim(); }
+    function getNltKey() { return (localStorage.getItem('nlt_key') || '').trim() || 'TEST'; }
+    // Bible IDs are found automatically from your API.Bible account. You can also hard-code one here.
+    const TRANSLATIONS = {
+        NKJV: { source: 'apibible', bibleId: "", label: 'New King James Version' },
+        NIV:  { source: 'apibible', bibleId: "", label: 'New International Version' },
+        AMP:  { source: 'apibible', bibleId: "", label: 'Amplified Bible' },
+        CEV:  { source: 'apibible', bibleId: "", label: 'Contemporary English Version' },
+        MSG:  { source: 'apibible', bibleId: "", label: 'The Message' },
+        NLT:  { source: 'nlt', label: 'New Living Translation' }
     };
+    let apiBibleList = null;
+    async function discoverBibleId(t) {
+        if (!apiBibleList) {
+            const res = await fetch('https://api.scripture.api.bible/v1/bibles?language=eng', { headers: { 'api-key': getApiBibleKey() } });
+            if (res.status === 401 || res.status === 403) throw new Error('API.Bible refused your key (' + res.status + '). Re-check the key in the Translation keys box.');
+            if (!res.ok) throw new Error('API.Bible error ' + res.status + ' while looking up ' + t + '.');
+            apiBibleList = (await res.json()).data || [];
+        }
+        const want = t.toLowerCase();
+        const hit = apiBibleList.find(b => (b.abbreviation || '').toLowerCase() === want)
+                 || apiBibleList.find(b => (b.abbreviationLocal || '').toLowerCase() === want)
+                 || apiBibleList.find(b => (b.name || '').toLowerCase().includes(TRANSLATIONS[t].label.toLowerCase()));
+        if (!hit) throw new Error(t + ' is not on your API.Bible account yet. Add it under your app plan on api.bible, then try again.');
+        TRANSLATIONS[t].bibleId = hit.id;
+        return hit.id;
+    }
+
+    // USFM book codes in the same order as bookData (Genesis ... Revelation)
+    const USFM = ["GEN","EXO","LEV","NUM","DEU","JOS","JDG","RUT","1SA","2SA","1KI","2KI","1CH","2CH","EZR","NEH","EST","JOB","PSA","PRO","ECC","SNG","ISA","JER","LAM","EZK","DAN","HOS","JOL","AMO","OBA","JON","MIC","NAM","HAB","ZEP","HAG","ZEC","MAL","MAT","MRK","LUK","JHN","ACT","ROM","1CO","2CO","GAL","EPH","PHP","COL","1TH","2TH","1TI","2TI","TIT","PHM","HEB","JAS","1PE","2PE","1JN","2JN","3JN","JUD","REV"];
+
+    // Turns the HTML an API returns into one entry per verse (so Prev/Next works)
+    function htmlToVerses(html, parsed, t, copyright) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        doc.querySelectorAll('h1,h2,h3,h4,.s,.s1,.ms,.mr,.r,.chapter-number,.footnote,.tn,.a-tn,sup,note,.note').forEach(n => n.remove());
+        const verses = {};
+        const order = [];
+        let cur = parsed.verseStart || 1;
+        const walk = (node) => {
+            node.childNodes.forEach(ch => {
+                if (ch.nodeType === 1) {
+                    const cls = ch.getAttribute('class') || '';
+                    if (/(^|\s)(v|vn)(\s|$)/.test(cls)) {
+                        const n = parseInt(ch.getAttribute('data-number') || ch.textContent, 10);
+                        if (!isNaN(n)) cur = n;
+                        return;
+                    }
+                    walk(ch);
+                    if (/^(P|DIV|BR|LI)$/.test(ch.tagName)) { verses[cur] = (verses[cur] || '') + ' '; }
+                } else if (ch.nodeType === 3) {
+                    if (!(cur in verses)) { verses[cur] = ''; order.push(cur); }
+                    verses[cur] += ch.textContent;
+                }
+            });
+        };
+        walk(doc.body);
+        const name = TRANSLATIONS[t].label;
+        const list = order
+            .map(n => ({ n, text: (verses[n] || '').replace(/\s+/g, ' ').trim() }))
+            .filter(x => x.text)
+            .map(x => ({
+                reference: `${parsed.book.name} ${parsed.chapter}:${x.n}`,
+                text: x.text,
+                translation: t,
+                translationName: name,
+                copyright: copyright || ''
+            }));
+        if (!list.length) throw new Error('The service returned no text for that reference in ' + t + '.');
+        return list;
+    }
+
+    // ---- API.Bible: NKJV, NIV, AMP, CEV, MSG ----
+    async function fetchApiBibleVerses(parsed, t) {
+        const cfg = TRANSLATIONS[t];
+        if (!getApiBibleKey()) {
+            throw new Error('API.Bible key is missing. Open "Translation keys" under the translation buttons and paste it.');
+        }
+        if (!cfg.bibleId) await discoverBibleId(t);
+        const usfm = USFM[bookData.indexOf(parsed.book)];
+        const opts = 'content-type=html&include-notes=false&include-titles=false&include-chapter-numbers=false&include-verse-numbers=true&include-verse-spans=true';
+        let path;
+        if (!parsed.verseStart) {
+            path = `chapters/${usfm}.${parsed.chapter}`;
+        } else {
+            const s = parsed.verseStart, e = parsed.verseEnd || s;
+            path = `passages/${usfm}.${parsed.chapter}.${s}` + (e > s ? `-${usfm}.${parsed.chapter}.${e}` : '');
+        }
+        const res = await fetch(`https://api.scripture.api.bible/v1/bibles/${cfg.bibleId}/${path}?${opts}`, {
+            headers: { 'api-key': getApiBibleKey() }
+        });
+        if (res.status === 401 || res.status === 403) throw new Error(t + ': API.Bible refused the request (' + res.status + '). Check your key and that ' + t + ' is added to your plan.');
+        if (res.status === 404) throw new Error(t + ': not found (404). Check the Bible ID and the reference.');
+        if (!res.ok) throw new Error(t + ': API.Bible error ' + res.status + '.');
+        const json = await res.json();
+        return htmlToVerses(json.data.content, parsed, t, json.data.copyright);
+    }
+
+    // ---- NLT: Tyndale's own API ----
+    async function fetchNLTVerses(parsed) {
+        const bookPart = parsed.book.name.replace(/\s+/g, '');
+        let ref = `${bookPart}.${parsed.chapter}`;
+        if (parsed.verseStart) {
+            ref += ':' + parsed.verseStart;
+            if (parsed.verseEnd && parsed.verseEnd > parsed.verseStart) ref += '-' + parsed.verseEnd;
+        }
+        const res = await fetch(`https://api.nlt.to/api/passages?ref=${encodeURIComponent(ref)}&version=NLT&key=${encodeURIComponent(getNltKey())}`);
+        if (res.status === 401 || res.status === 403) throw new Error('NLT: key refused (' + res.status + '). Check the NLT key in the Translation keys box.');
+        if (!res.ok) throw new Error('NLT: error ' + res.status + '.');
+        const html = await res.text();
+        return htmlToVerses(html, parsed, 'NLT', 'Holy Bible, New Living Translation, copyright Tyndale House Foundation.');
+    }
+
+    // Test every translation with Ruth 1:7 and show the results on screen
+    async function runTranslationTest() {
+        const box = document.getElementById('testResults');
+        box.innerHTML = 'Testing…';
+        const parsed = parseReference('Ruth 1:7');
+        const lines = [];
+        for (const t of Object.keys(TRANSLATIONS)) {
+            try {
+                const out = TRANSLATIONS[t].source === 'nlt' ? await fetchNLTVerses(parsed) : await fetchApiBibleVerses(parsed, t);
+                lines.push('✅ ' + t + ' works');
+            } catch (err) {
+                lines.push('❌ ' + t + ': ' + err.message);
+            }
+            box.innerHTML = lines.map(escapeHtml).join('<br>');
+        }
+    }
+    window.addEventListener('load', () => {
+        const ab = document.getElementById('abKeyInput'), nl = document.getElementById('nltKeyInput');
+        ab.value = localStorage.getItem('apibible_key') || '';
+        nl.value = localStorage.getItem('nlt_key') || '';
+        document.getElementById('saveKeysBtn').addEventListener('click', () => {
+            localStorage.setItem('apibible_key', ab.value.trim());
+            localStorage.setItem('nlt_key', nl.value.trim());
+            apiBibleList = null;
+            Object.keys(TRANSLATIONS).forEach(k => { if (TRANSLATIONS[k].source === 'apibible') TRANSLATIONS[k].bibleId = ''; });
+            document.getElementById('testResults').textContent = 'Saved on this device.';
+        });
+        document.getElementById('testTransBtn').addEventListener('click', runTranslationTest);
+    });
+
     // ---- Music ----
     let currentSongUrl = null;
     let isPaused = false;
@@ -1800,20 +1955,15 @@ footer{
         setModeUI();
     });
 
-    // ---- Translation toggle (KJV via bible-api.com, others via Bolls) ----
+    // ---- Translation toggle (KJV/WEB via bible-api.com, others via API.Bible / NLT API) ----
     document.getElementById('translationToggle').addEventListener('click', (e) => {
         if (e.target.tagName !== 'BUTTON') return;
         document.querySelectorAll('#translationToggle button').forEach(b => b.classList.remove('active'));
         e.target.classList.add('active');
         const t = e.target.dataset.t;
-        if (e.target.dataset.src === 'bolls') {
-            state.translationSource = 'bolls';
-            state.translation = t;
-            state.translationLabel = BOLLS_TRANSLATIONS[t];
-        } else {
-            state.translationSource = 'bible-api';
-            state.translation = t;
-        }
+        state.translationSource = e.target.dataset.src;
+        state.translation = t;
+        state.translationLabel = TRANSLATIONS[t] ? TRANSLATIONS[t].label : (translationNames[t] || t);
     });
 
     // ---- Fetch scripture ----
@@ -1832,45 +1982,15 @@ footer{
         state.verseIndex = 0;
 
         try {
-            if (state.translationSource === 'bolls') {
+            if (state.translationSource === 'apibible' || state.translationSource === 'nlt') {
                 const parsed = parseReference(refText);
                 if (!parsed) throw new Error('Please choose a book and chapter above, or type a reference like "John 3:16".');
-                const bookNum = bookData.indexOf(parsed.book) + 1;
-                let verses = [];
-
-                if (!parsed.verseStart) {
-                    // No verse given — fetch the whole chapter in one call instead of
-                    // silently defaulting to just verse 1.
-                    const url = `https://bolls.life/get-text/${state.translation}/${bookNum}/${parsed.chapter}/`;
-                    const res = await fetch(url);
-                    if (!res.ok) throw new Error(`Could not fetch that chapter (status ${res.status}).`);
-                    const data = await res.json();
-                    if (!Array.isArray(data) || !data.length) throw new Error('That chapter came back empty for this translation.');
-                    verses = data.map(v => ({
-                        reference: `${parsed.book.name} ${parsed.chapter}:${v.verse}`,
-                        text: v.text.replace(/<[^>]+>/g, '').trim(),
-                        translation: state.translation,
-                        translationName: state.translationLabel
-                    }));
-                } else {
-                    const vStart = parsed.verseStart;
-                    const vEnd = parsed.verseEnd || vStart;
-                    if (vEnd - vStart > 40) throw new Error('That range is too long — try a shorter passage.');
-                    for (let v = vStart; v <= vEnd; v++) {
-                        const url = `https://bolls.life/get-verse/${state.translation}/${bookNum}/${parsed.chapter}/${v}/`;
-                        const res = await fetch(url);
-                        if (!res.ok) throw new Error(`Could not fetch that verse (status ${res.status}).`);
-                        const v_data = await res.json();
-                        if (!v_data || !v_data.text) throw new Error('That verse came back empty for this translation.');
-                        verses.push({
-                            reference: `${parsed.book.name} ${parsed.chapter}:${v}`,
-                            text: v_data.text.replace(/<[^>]+>/g, '').trim(),
-                            translation: state.translation,
-                            translationName: state.translationLabel
-                        });
-                    }
+                if (parsed.verseStart && (parsed.verseEnd || parsed.verseStart) - parsed.verseStart > 40) {
+                    throw new Error('That range is too long — try a shorter passage.');
                 }
-                state.verseList = verses;
+                state.verseList = state.translationSource === 'nlt'
+                    ? await fetchNLTVerses(parsed)
+                    : await fetchApiBibleVerses(parsed, state.translation);
             } else {
                 const url = `https://bible-api.com/${encodeURIComponent(refText)}?translation=${state.translation}&single_chapter_book_matching=indifferent`;
                 const res = await fetch(url);
@@ -1915,6 +2035,7 @@ footer{
         previewBox.innerHTML = `
             <div class="verse-text">${escapeHtml(v.text)}</div>
             <div class="verse-ref">${escapeHtml(v.reference)} — ${v.translationName}</div>
+            ${v.copyright ? `<div class="hint" style="margin-top:6px;">${escapeHtml(v.copyright)}</div>` : ''}
             ${stepperHtml}
         `;
         sendBtn.disabled = false;
